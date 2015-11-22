@@ -45,6 +45,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.security.DigestInputStream;
+import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -53,6 +54,9 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLServerSocketFactory;
 
 import fi.iki.elonen.NanoHTTPD;
 
@@ -65,6 +69,8 @@ public class MicroHTTPDActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_micro_httpd);
+
+        TextView greeting_textview = (TextView) findViewById( R.id.greetings );
 
         CheckBox http_readwrite_checkbox = (CheckBox) findViewById( R.id.http_readwrite_checkbox );
         http_readwrite_checkbox.setChecked(getPreferences(MODE_PRIVATE).getBoolean("HttpReadWrite", false));
@@ -82,6 +88,22 @@ public class MicroHTTPDActivity extends ActionBarActivity {
             }
         });
 
+        CheckBox http_secure_checkbox = (CheckBox) findViewById( R.id.http_secure_checkbox );
+        http_secure_checkbox.setChecked(getPreferences(MODE_PRIVATE).getBoolean("HttpSecure", false));
+        http_secure_checkbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
+            {
+                //CheckBox http_readwrite_checkbox = (CheckBox) findViewById(R.id.http_readwrite_checkbox);
+                m_micro_httpd.m_http_secure = isChecked;
+
+                if (isChecked)
+                    Toast.makeText(getApplicationContext(),
+                            "HTTP server will now uses HTTPs. RESTART NEEDED.",
+                            Toast.LENGTH_LONG)
+                            .show();
+            }
+        });
+
         /*
         Spinner spinner = (Spinner) rootView.findViewById(R.id.http_root_spinner);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(getActivity(),
@@ -93,10 +115,65 @@ public class MicroHTTPDActivity extends ActionBarActivity {
         try {
             m_micro_httpd = new MicroHTTPD();
             m_micro_httpd.m_readwrite = getPreferences(MODE_PRIVATE).getBoolean("HttpReadWrite", false);
+            m_micro_httpd.m_http_secure = getPreferences(MODE_PRIVATE).getBoolean("HttpSecure", false);
+        } catch (Exception e) {
+            String msg = "Couldn't create server:\n" + e;
+            greeting_textview.setText(msg);
+            greeting_textview.setTextColor(0XFF0000);
+            Log.e("httpd", msg);
+            System.err.println(msg);
+            //System.exit(-1);
+        }
+
+        try {
+            if (m_micro_httpd.m_http_secure) {
+                /*
+                The trusted public certificates of servers are stored in the cacerts keystore file,
+                The trusted public certificates and private keys of clients are stored in the clientcerts keystore file.
+                The cacerts keystore file has a default password of changeit;
+                The clientcerts keystore file has a default password of passphrase.
+
+                keytool -genkey -keyalg RSA -alias selfsigned -keystore app/src/main/res/raw/keystore_bks.bks -storepass chtitpd -keysize 2048 -validity 3650 -storetype BKS-v1 -providerclass org.bouncycastle.jce.provider.BouncyCastleProvider -providerpath ../../../deps/Java/bks/bcprov-jdk15on-153.jar -ext SAN=DNS:localhost,IP:127.0.0.1
+                keytool -genkey -keyalg RSA -alias selfsigned -keystore app/src/main/res/raw/keystore_bks.bks -storepass chtitpd -keysize 2048 -validity 3650 -storetype BKS-v1 -providerclass org.bouncycastle.jce.provider.BouncyCastleProvider -providerpath ../bcprov-jdk15on-153.jar
+
+                */
+                char[] kspass = "chtitpd".toCharArray();
+
+                String kstype = KeyStore.getDefaultType();
+                KeyStore ks = KeyStore.getInstance(kstype);
+                //KeyStore ks = KeyStore.getInstance("JKS"); // PKCS12 or JKS (Java) or BKS (Android), KeychainStore (Apple)
+                //ks.load(new FileInputStream("/Users/kljh/Downloads/Projects/keystore.jks"), kspass);
+                //ks.load(new FileInputStream("file:///android_asset/singuler.keystore"), kspass);
+                //ks.load(new FileInputStream("file:///Users/kljh/Downloads/Projects/keystore.jks"), kspass);
+                //ks.load(getResources().getAssets().open("keystore.jks"), kspass);
+                ks.load(getResources().openRawResource(R.raw.keystore_bks), kspass);
+
+                KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                kmf.init(ks, kspass);
+
+                SSLServerSocketFactory ssf = NanoHTTPD.makeSSLSocketFactory(ks, kmf);
+                //SSLServerSocketFactory ssf = NanoHTTPD.makeSSLSocketFactory("/keystore.jks", "password".toCharArray());
+
+                m_micro_httpd.makeSecure(ssf, new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"});
+            }
+        } catch (Exception e) {
+            String msg = "Couldn't intialise secure socket:\n" + e;
+            greeting_textview.setText(msg);
+            greeting_textview.setTextColor(0XFF0000);
+            Log.e("httpd", msg);
+            System.err.println(msg);
+            //System.exit(-1);
+        }
+
+        try {
             m_micro_httpd.start();
-        } catch (IOException ioe) {
-            System.err.println("Couldn't start server:\n" + ioe);
-            System.exit(-1);
+        } catch (Exception e) {
+            String msg = "Couldn't start server:\n" + e;
+            greeting_textview.setText(msg);
+            greeting_textview.setTextColor(0XFF0000);
+            Log.e("httpd", msg);
+            System.err.println(msg);
+            //System.exit(-1);
         }
 
         try {
@@ -169,7 +246,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
             if (ipAddress==0)
                 ipAddress = 1 * 0x1000000 + 127; // little endian
             String httpd_addr = String.format("%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff), (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
-            final String url = "http://" + httpd_addr + ":" + m_micro_httpd.getListeningPort() + "/";
+            final String url = (m_micro_httpd.m_http_secure?"https":"http") + "://" + httpd_addr + ":" + m_micro_httpd.getListeningPort() + "/";
             final String query = "?pict="+Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getCanonicalPath();
 
             TextView tv = (TextView) findViewById(R.id.http_url);
@@ -206,6 +283,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
         super.onPause();
         SharedPreferences.Editor ed = getPreferences(MODE_PRIVATE).edit();
         ed.putBoolean("HttpReadWrite", m_micro_httpd.m_readwrite);
+        ed.putBoolean("HttpSecure", m_micro_httpd.m_http_secure);
         ed.commit();
     }
 
@@ -260,10 +338,12 @@ public class MicroHTTPDActivity extends ActionBarActivity {
 
 class MicroHTTPD extends NanoHTTPD {
     public boolean m_readwrite = false;
+    public boolean m_http_secure = false;
     public String m_homepage;
 
     public MicroHTTPD() throws IOException {
         super(8080);
+        super.MIME_TYPES = this.MIME_TYPES;
     }
 
     @Override
@@ -333,7 +413,11 @@ class MicroHTTPD extends NanoHTTPD {
 
                     if (params.containsKey("list")) {
                         // list directory
-                        return listDirectory(uri, f);
+
+                        boolean calculate_hashes = false;
+                        if (params.containsKey("hash"))
+                            calculate_hashes = Boolean.parseBoolean(params.get("hash"));
+                        return listDirectory(uri, f, calculate_hashes);
                     } else if (new File(f.getAbsolutePath()+"/index.html").exists()) {
 
                         String mimeTypeForFile = getMimeTypeForFile(uri);
@@ -404,7 +488,7 @@ class MicroHTTPD extends NanoHTTPD {
                     };
                     fis.skip(startFrom);
 
-                    res = createResponse(Response.Status.PARTIAL_CONTENT, mime, fis);
+                    res = createResponse(Response.Status.PARTIAL_CONTENT, mime, fis, (int)dataLen);
                     res.addHeader("Content-Length", "" + dataLen);
                     res.addHeader("Content-Range", "bytes " + startFrom + "-" + endAt + "/" + fileLen);
                     res.addHeader("ETag", etag);
@@ -413,7 +497,7 @@ class MicroHTTPD extends NanoHTTPD {
                 if (etag.equals(header.get("if-none-match")))
                     res = createResponse(Response.Status.NOT_MODIFIED, mime, "");
                 else {
-                    res = createResponse(Response.Status.OK, mime, new FileInputStream(file));
+                    res = createResponse(Response.Status.OK, mime, new FileInputStream(file), (int)file.length());
                     res.addHeader("Content-Length", "" + fileLen);
                     res.addHeader("ETag", etag);
                 }
@@ -442,7 +526,7 @@ class MicroHTTPD extends NanoHTTPD {
     }
     */
 
-    protected Response listDirectory(String uri, File f) {
+    protected Response listDirectory(String uri, File f, boolean calculate_hashes) {
 
         List<String> directories = Arrays.asList(f.list(new FilenameFilter() {
             @Override
@@ -477,8 +561,10 @@ class MicroHTTPD extends NanoHTTPD {
                 item.put("name", file);
                 item.put("length", fi.length());
                 item.put("lastModified", fi.lastModified());
-                item.put("file_handler_hash", fi.hashCode());
-                item.put("md5_hash", file_md5(fi));
+                if (calculate_hashes) {
+                    item.put("file_handler_hash", fi.hashCode());
+                    item.put("md5_hash", file_md5(fi));
+                }
                 ls.put(item);
             }
 
@@ -491,10 +577,9 @@ class MicroHTTPD extends NanoHTTPD {
         }
     }
 
-
     // Announce that the file server accepts partial content requests
-    private Response createResponse(Response.Status status, String mimeType, InputStream message) {
-        NanoHTTPD.Response res = new NanoHTTPD.Response(status, mimeType, message);
+    private Response createResponse(Response.IStatus status, String mimeType, InputStream message, int length) {
+        NanoHTTPD.Response res = NanoHTTPD.newFixedLengthResponse(status, mimeType, message, length);
         res.addHeader("Accept-Ranges", "bytes");
         res.addHeader("Access-Control-Allow-Origin", "*");
         res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -504,7 +589,7 @@ class MicroHTTPD extends NanoHTTPD {
 
     // Announce that the file server accepts partial content requests
     private Response createResponse(Response.Status status, String mimeType, String message) {
-        NanoHTTPD.Response res = new NanoHTTPD.Response(status, mimeType, message);
+        NanoHTTPD.Response res = NanoHTTPD.newFixedLengthResponse(status, mimeType, message);
         res.addHeader("Accept-Ranges", "bytes");
         res.addHeader("Access-Control-Allow-Origin", "*");
         res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -513,6 +598,7 @@ class MicroHTTPD extends NanoHTTPD {
     }
 
     // Get MIME type from file name extension, if possible
+    /* now part of NanoHttp
     private String getMimeTypeForFile(String uri) {
         int dot = uri.lastIndexOf('.');
         String mime = null;
@@ -521,6 +607,7 @@ class MicroHTTPD extends NanoHTTPD {
         }
         return mime == null ? "application/octet-stream" : mime;
     }
+    */
 
     // Hashtable mapping (String)FILENAME_EXTENSION -> (String)MIME_TYPE
     private static final Map<String, String> MIME_TYPES = new HashMap<String, String>() {{

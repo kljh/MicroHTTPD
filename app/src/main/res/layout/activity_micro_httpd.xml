@@ -14,6 +14,7 @@
 
     <!-- URL confirmation -->
     <TextView
+        android:id="@+id/greetings"
         android:text="@string/greetings"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -40,6 +41,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingBottom="15dp"
+        />
+
+    <CheckBox android:id="@+id/http_secure_checkbox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Use HTTPs Secure connection"
         />
 
     <!-- checkbox for read-only vs read write + toast to confirm implication of RW for PUT and DELETE -->
