@@ -1,61 +1,67 @@
 package fr.main2.microhttpd;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.media.Image;
-import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
-import android.provider.MediaStore;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.Display;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.zxing.BarcodeFormat;
-import com.google.zxing.EncodeHintType;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.security.DigestInputStream;
 import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 
 import fi.iki.elonen.NanoHTTPD;
@@ -67,55 +73,41 @@ public class MicroHTTPDActivity extends ActionBarActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        //this.requestWindowFeature(Window.FEATURE_NO_TITLE);  // Remove title bar
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_micro_httpd);
 
         TextView greeting_textview = (TextView) findViewById( R.id.greetings );
 
-        CheckBox http_readwrite_checkbox = (CheckBox) findViewById( R.id.http_readwrite_checkbox );
-        http_readwrite_checkbox.setChecked(getPreferences(MODE_PRIVATE).getBoolean("HttpReadWrite", false));
-        http_readwrite_checkbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
-            {
-                //CheckBox http_readwrite_checkbox = (CheckBox) findViewById(R.id.http_readwrite_checkbox);
-                m_micro_httpd.m_readwrite = isChecked;
+        boolean RESTART_ON_CHANGE = true;
+        boolean NO_RESTART_ON_CHANGE = false;
+        sync_setting_checkbox("http_secure", R.id.http_secure, MicroHTTPD.http_secure_default,
+                "HTTP server will uses HTTPs.\nCertificate is self-signed. The browser will issue a secrurity warning (still exposed to man-in-the-middle attacks).",
+                "HTTP server will uses standard HTTP.", RESTART_ON_CHANGE);
+        sync_setting_checkbox("http_allow_put", R.id.http_allow_put, MicroHTTPD.http_allow_put_default, null, null, NO_RESTART_ON_CHANGE);
+        sync_setting_checkbox("http_allow_delete", R.id.http_allow_delete, MicroHTTPD.http_allow_delete_default, "DELETE requests now allowed", null, NO_RESTART_ON_CHANGE);
+        sync_setting_checkbox("http_auth_get", R.id.http_auth_get, MicroHTTPD.http_auth_get_default, null, null, NO_RESTART_ON_CHANGE);
+        sync_setting_checkbox("http_auth_put", R.id.http_auth_put, MicroHTTPD.http_auth_put_default, null, null, NO_RESTART_ON_CHANGE);
+        sync_setting_checkbox("http_auth_delete", R.id.http_auth_delete, MicroHTTPD.http_auth_delete_default, null, "DELETE requests now allowed without authentification", NO_RESTART_ON_CHANGE);
 
-                if (isChecked)
-                    Toast.makeText(getApplicationContext(),
-                            "HTTP server now accepts PUT and DELETE requests.",
-                            Toast.LENGTH_LONG)
-                            .show();
+        String http_password = getPreferences(MODE_PRIVATE).getString("http_password", null);
+        if (http_password==null || http_password=="")
+            http_password = random_password(8);
+        final EditText http_password_input = (EditText) findViewById( R.id.http_password );
+        http_password_input.setText(http_password);
+        http_password_input.setOnKeyListener(new EditText.OnKeyListener() {
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                m_micro_httpd.m_http_password = http_password_input.getText().toString();
+                getPreferences(MODE_PRIVATE).edit().putString("http_password", m_micro_httpd.m_http_password).commit();
+                return false;
             }
         });
 
-        CheckBox http_secure_checkbox = (CheckBox) findViewById( R.id.http_secure_checkbox );
-        http_secure_checkbox.setChecked(getPreferences(MODE_PRIVATE).getBoolean("HttpSecure", false));
-        http_secure_checkbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
-            {
-                //CheckBox http_readwrite_checkbox = (CheckBox) findViewById(R.id.http_readwrite_checkbox);
-                m_micro_httpd.m_http_secure = isChecked;
-
-                if (isChecked)
-                    Toast.makeText(getApplicationContext(),
-                            "HTTP server will now uses HTTPs. RESTART NEEDED.",
-                            Toast.LENGTH_LONG)
-                            .show();
-            }
-        });
-
-        /*
-        Spinner spinner = (Spinner) rootView.findViewById(R.id.http_root_spinner);
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(getActivity(),
-                R.array.http_root_spinner_array, android.R.layout.simple_spinner_item);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        */
 
         try {
             m_micro_httpd = new MicroHTTPD();
-            m_micro_httpd.m_readwrite = getPreferences(MODE_PRIVATE).getBoolean("HttpReadWrite", false);
-            m_micro_httpd.m_http_secure = getPreferences(MODE_PRIVATE).getBoolean("HttpSecure", false);
+            m_micro_httpd.m_preferences = getPreferences(MODE_PRIVATE);
+            m_micro_httpd.m_http_password = http_password;
         } catch (Exception e) {
             String msg = "Couldn't create server:\n" + e;
             greeting_textview.setText(msg);
@@ -125,8 +117,9 @@ public class MicroHTTPDActivity extends ActionBarActivity {
             //System.exit(-1);
         }
 
+        boolean http_secure = getPreferences(MODE_PRIVATE).getBoolean("http_secure", MicroHTTPD.http_secure_default);
         try {
-            if (m_micro_httpd.m_http_secure) {
+            if (http_secure) {
                 /*
                 The trusted public certificates of servers are stored in the cacerts keystore file,
                 The trusted public certificates and private keys of clients are stored in the clientcerts keystore file.
@@ -137,6 +130,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
                 keytool -genkey -keyalg RSA -alias selfsigned -keystore app/src/main/res/raw/keystore_bks.bks -storepass chtitpd -keysize 2048 -validity 3650 -storetype BKS-v1 -providerclass org.bouncycastle.jce.provider.BouncyCastleProvider -providerpath ../bcprov-jdk15on-153.jar
 
                 */
+
                 char[] kspass = "chtitpd".toCharArray();
 
                 String kstype = KeyStore.getDefaultType();
@@ -154,7 +148,9 @@ public class MicroHTTPDActivity extends ActionBarActivity {
                 SSLServerSocketFactory ssf = NanoHTTPD.makeSSLSocketFactory(ks, kmf);
                 //SSLServerSocketFactory ssf = NanoHTTPD.makeSSLSocketFactory("/keystore.jks", "password".toCharArray());
 
-                m_micro_httpd.makeSecure(ssf, new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"});
+                String[] supported_secure_protocols = ((SSLServerSocket)ssf.createServerSocket()).getSupportedProtocols();
+                for (String p : supported_secure_protocols) Log.w("httpd", "SSL supported protocol: "+p);
+                m_micro_httpd.makeSecure(ssf, null); // new String[] { "TLSv1" , "TLSv1.1", "TLSv1.2" });
             }
         } catch (Exception e) {
             String msg = "Couldn't intialise secure socket:\n" + e;
@@ -177,9 +173,10 @@ public class MicroHTTPDActivity extends ActionBarActivity {
         }
 
         try {
+            m_micro_httpd.m_root_folders.put("tools", getExternalFilesDir(null).getAbsolutePath());
+
             // Copy Resources to ExternalFiles
             File file = new File(getExternalFilesDir(null), "index.html");
-            m_micro_httpd.m_homepage = file.getAbsolutePath();
             //if (!file.exists())
             {
                 HashMap<String, Integer> deps = new HashMap<String, Integer>();
@@ -205,7 +202,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
                 }
             }
         } catch (Exception e) {
-            Log.w("Resources2External", "Error", e);
+            Log.e("httpd", "Resources2External error: " + e.toString());
         }
     }
 
@@ -223,31 +220,33 @@ public class MicroHTTPDActivity extends ActionBarActivity {
                 if (ipAddress==0)
                 for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
                     NetworkInterface intf = en.nextElement();
-                    //Log.e("Network interface", intf.getDisplayName());
+                    Log.w("httpd", "Network interface: "+intf.getDisplayName());
                     for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
                         InetAddress inetAddress = enumIpAddr.nextElement();
-                        //Log.e("Network address", inetAddress.toString());
+                        Log.w("httpd", "Network address: "+inetAddress.toString());
                         if (!inetAddress.isLoopbackAddress()) {
                             String ipHostname = inetAddress.getHostAddress();
                             byte b[] = inetAddress.getAddress();
                             // (my_byte & 0xff) converts signed my_byte into a unsigned int
                             if (b.length==4) {
-                                Log.e("Network IP", inetAddress.toString());
+                                Log.w("httpd", "IP "+inetAddress.toString());
                                 ipAddress = ((b[3] & 0xff) << 24) | ((b[2] & 0xff) << 16) | ((b[1] & 0xff) << 8) | (b[0] & 0xff);
                             } else {
-                                Log.e("Network IP v6 / MAC", inetAddress.toString());
+                                Log.w("httpd", "IP v6 / MAC " + inetAddress.toString());
                             }
                         }
                     }
                 }
             } catch (Exception ex) {
-                Log.e("Network exception", ex.toString());
+                Log.e("httpd", "Network exception: "+ ex.toString());
             }
             if (ipAddress==0)
                 ipAddress = 1 * 0x1000000 + 127; // little endian
             String httpd_addr = String.format("%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff), (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
-            final String url = (m_micro_httpd.m_http_secure?"https":"http") + "://" + httpd_addr + ":" + m_micro_httpd.getListeningPort() + "/";
-            final String query = "?pict="+Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getCanonicalPath();
+            boolean http_secure = getPreferences(MODE_PRIVATE).getBoolean("http_secure", MicroHTTPD.http_secure_default);
+            final String base_url = (http_secure?"https":"http") + "://" + httpd_addr + ":" + m_micro_httpd.getListeningPort() + "/";
+            final String query = "?secret="+m_micro_httpd.m_http_password;
+            final String url = base_url + query;
 
             TextView tv = (TextView) findViewById(R.id.http_url);
             tv.setText(url);
@@ -258,8 +257,9 @@ public class MicroHTTPDActivity extends ActionBarActivity {
             int qr_size = Math.min(width,height)>700 ? 512 : 256;
 
             ImageView iv = (ImageView) findViewById(R.id.http_qr_url);
-            Bitmap bmp = makeQRImage(url+query, qr_size);
+            Bitmap bmp = makeQRImage(url, qr_size);
             if (bmp!=null) iv.setImageBitmap(bmp);
+            /*
             iv.setOnClickListener(new View.OnClickListener(){
                 public void onClick(View v){
                     Intent intent = new Intent();
@@ -269,6 +269,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
                     startActivity(intent);
                 }
             });
+            */
         }
         catch( Exception e )
         {
@@ -281,12 +282,57 @@ public class MicroHTTPDActivity extends ActionBarActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        SharedPreferences.Editor ed = getPreferences(MODE_PRIVATE).edit();
-        ed.putBoolean("HttpReadWrite", m_micro_httpd.m_readwrite);
-        ed.putBoolean("HttpSecure", m_micro_httpd.m_http_secure);
-        ed.commit();
     }
 
+    private void sync_setting_checkbox(final String setting_name, int res_id, boolean default_value, final String msg_on_true, final String msg_on_false, final boolean restart_on_change) {
+        if (!getPreferences(MODE_PRIVATE).contains(setting_name))
+            getPreferences(MODE_PRIVATE).edit().putBoolean(setting_name, default_value).commit();
+
+        Boolean b = getPreferences(MODE_PRIVATE).getBoolean(setting_name, default_value);
+
+        final CheckBox ckbx = (CheckBox) findViewById( res_id );
+        ckbx.setChecked(b);
+        ckbx.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                //CheckBox ckbx = (CheckBox) findViewById( res_id );
+
+                SharedPreferences.Editor ed = getPreferences(MODE_PRIVATE).edit();
+                ed.putBoolean(setting_name, isChecked);
+                ed.commit();
+
+                if (isChecked && msg_on_true != null)
+                    Toast.makeText(getApplicationContext(), msg_on_true, Toast.LENGTH_LONG).show();
+                if (!isChecked && msg_on_false != null)
+                    Toast.makeText(getApplicationContext(), msg_on_false, Toast.LENGTH_LONG).show();
+                if (restart_on_change)
+                    restart_activity(getApplicationContext());
+            }
+        });
+
+    }
+
+    private static final String AB = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static Random rnd;
+    private static String random_password(int len) {
+        if (rnd==null) rnd = new Random();
+        StringBuilder sb = new StringBuilder( len );
+        for (int i=0; i<len; i++)
+            sb.append( AB.charAt( rnd.nextInt(AB.length()) ) );
+        return sb.toString();
+    }
+
+    private void restart_activity(Context context) {
+        m_micro_httpd.stop();
+
+        Intent mStartActivity = new Intent(context, MicroHTTPDActivity.class);
+        int pendingIntentId = 0; //123456;
+        PendingIntent mPendingIntent = PendingIntent.getActivity(context, pendingIntentId, mStartActivity, PendingIntent.FLAG_CANCEL_CURRENT);
+
+        AlarmManager alarm_mgr = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
+        alarm_mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 100, mPendingIntent);
+
+        finish();
+    }
 
     private static Bitmap makeQRImage(String txt, int qr_size) {
 
@@ -335,16 +381,47 @@ public class MicroHTTPDActivity extends ActionBarActivity {
     }
 }
 
+/*
+public class BootUpReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        Intent i = new Intent(context, MicroHTTPDActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(i);
+    }
+}
+*/
 
 class MicroHTTPD extends NanoHTTPD {
-    public boolean m_readwrite = false;
-    public boolean m_http_secure = false;
-    public String m_homepage;
+    public SharedPreferences m_preferences = null;
+    public String m_http_password;
+    public Map<String, String> m_root_folders = new HashMap<String, String>();
 
     public MicroHTTPD() throws IOException {
-        super(8080);
+        super(8086); // 0 to select port automatically
         super.MIME_TYPES = this.MIME_TYPES;
+
+        // lines below may throw
+        //m_root_folders.put("documents", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).getCanonicalPath());
+        m_root_folders.put("downloads", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getCanonicalPath());
+        m_root_folders.put("movies", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).getCanonicalPath());
+        m_root_folders.put("music", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).getCanonicalPath());
+        m_root_folders.put("photos", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getCanonicalPath());
+        m_root_folders.put("pictures", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).getCanonicalPath());
+        //m_root_folders.put("podcasts", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS).getCanonicalPath());
+        m_root_folders.put("root", "");
+        m_root_folders.put("sdcard", Environment.getExternalStorageDirectory().getCanonicalPath());
+        //m_root_folders.put("tools",  getExternalFilesDir(null).getAbsolutePath());
+
     }
+
+    static public boolean
+        http_secure_default = false,
+        http_allow_put_default = true,
+        http_allow_delete_default = false,
+        http_auth_get_default = false,
+        http_auth_put_default = true,
+        http_auth_delete_default = true;
 
     @Override
     public Response serve(IHTTPSession session) {
@@ -354,9 +431,31 @@ class MicroHTTPD extends NanoHTTPD {
         String uri = session.getUri(); // excl query
         Method verb = session.getMethod(); // GET, POST, PUT, etc.
 
-        File f = new File(uri).getAbsoluteFile();
+        String[] uri_split = uri.split("\\/");
+        String uri_root_folder = uri_split.length>1 ? uri_split[1] : "";
+        File f = null;
+        if (m_root_folders.containsKey(uri_root_folder)) {
+            uri = m_root_folders.get(uri_root_folder) + uri.substring(uri_root_folder.length()+1);
+            f = new File(uri).getAbsoluteFile();
+        } else {
+            //return createResponse(Response.Status.NOT_FOUND, "text/plain", uri_root_folder + "(" + uri + ") not found in m_root_folders");
+        }
 
         String msg = "";
+
+        boolean bAuthOk = false;
+        if (headers.containsKey("authorization")) try {
+            String auth64 = headers.get("authorization").replace("Basic ", "");
+            Log.w("httpd", "Authorization base64: "+auth64);
+            byte[] data = Base64.decode(auth64, Base64.DEFAULT);
+            String auth = new String(data, "UTF-8");
+            Log.w("httpd", "Authorization: "+auth);
+            msg += "Authorization: request uses secret '"+auth+"'.";
+            bAuthOk = auth.contains(m_http_password);
+        } catch (UnsupportedEncodingException uee) {
+            Log.e("httpd", "Authorization header error: "+uee);
+        }
+
         if (verb == Method.OPTIONS) {
             // OPTIONS (to ask permission to GET, POST, PUT)
             NanoHTTPD.Response res = createResponse(Response.Status.OK, "text/plain", "");
@@ -364,10 +463,12 @@ class MicroHTTPD extends NanoHTTPD {
             res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT");
             res.addHeader("Access-Control-Allow-Headers", "*");
             return res;
-        } else if (verb == Method.PUT) {
+        } else if (verb == Method.PUT || verb == Method.POST) {
             // PUT
-            if (!m_readwrite)
-                return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: HTTP server set to read-only mode.");
+            if (!m_preferences.getBoolean("http_allow_put", http_allow_put_default))
+                return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: http_allow_put set to false.");
+            if (m_preferences.getBoolean("http_auth_put", http_auth_put_default) && !bAuthOk)
+                return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: http_auth_put set to true and authentication failed.");
 
             try {
                 //BufferedReader reader = new BufferedReader(new InputStreamReader(session.getInputStream()));
@@ -376,21 +477,113 @@ class MicroHTTPD extends NanoHTTPD {
                 //    msg += line + "\n";
                 //session.get
 
-                BufferedWriter writer = new BufferedWriter(new FileWriter(f));
-                writer.write(msg, 0, msg.length());
-                msg = "written " + msg.length();
+                Map<String, String> files = new HashMap<String, String>();
+                session.parseBody(files);
+
+                for (String h : headers.keySet()) {
+                    String tmp = "header['" + h + "'] : " + headers.get(h);
+                    Log.w("httpd", tmp);
+                    msg += tmp + "\n";
+                }
+
+                for (String pk : params.keySet()) {
+                    String tmp = "prms['" + pk + "'] : " + params.get(pk)
+                            + " \nprms['" + pk + "'] : " + new String(params.get(pk).getBytes("ISO-8859-1"), "UTF-8"); // US-ASCII, ISO-8859-1, UTF-8
+                    Log.w("httpd", tmp);
+                    msg += tmp + "\n";
+                }
+
+                for (String fk : files.keySet()) {
+
+                    // create parent folder
+                    if (f==null)
+                        throw new Exception("write destination invalid (shall be prefixed with /downloads/ ?)");
+
+                    if (!f.exists()) {
+                        if (uri.endsWith("/"))
+                            f.mkdirs();
+                        else if (f.getParentFile() != null && !f.getParentFile().exists())
+                            f.getParentFile().mkdirs();
+                    }
+
+                    if (f.isDirectory()) {
+                        if (params.containsKey(fk))
+                            f = new File(f.getCanonicalPath()+"/"+params.get(fk)).getAbsoluteFile();
+                        else
+                            throw new Exception("write destination is a directory and didn't get a file name");
+                    }
+
+                    File file_src = new File(files.get(fk));
+                    File file_dst = new File(f.getCanonicalPath());
+
+                    String tmp = "file['" + fk + "'] : " + files.get(fk) + " " + file_src.length() + "bytes";
+                    Log.w("httpd", tmp);
+                    msg += tmp + "\n";
+
+                    InputStream in = new FileInputStream(file_src);
+                    OutputStream out = new FileOutputStream(file_dst);
+
+                    int read;
+                    byte[] buffer = new byte[1024];
+                    while ((read = in.read(buffer)) != -1)
+                        out.write(buffer, 0, read);
+
+                    in.close();
+                    out.flush();
+                    out.close();
+
+                    // use "Last-Modified" header if any
+                    String last_modified_text = null;
+                    if (headers.containsKey("last-modified"))
+                        last_modified_text = headers.get("last-modified");
+                    if (params.containsKey("last-modified"))
+                        last_modified_text = params.get("last-modified");
+                    if (params.containsKey("Last-Modified"))
+                        last_modified_text = params.get("Last-Modified");
+                    if (last_modified_text != null && !last_modified_text.isEmpty()) {
+                        msg += "last_modified_text: " + last_modified_text + "\n";
+                        SimpleDateFormat date_fmt = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz"); // RFC-7231
+                        if (last_modified_text.length()==10)
+                            date_fmt = new SimpleDateFormat("yyyy-MM-dd"); // ISO 8601
+                        if (last_modified_text.length()==16)
+                            date_fmt = new SimpleDateFormat("yyyy-MM-dd'"+last_modified_text.charAt(10)+"'HH:mm");
+                        if (last_modified_text.length()==17)
+                            date_fmt = new SimpleDateFormat("yyyy-MM-dd'"+last_modified_text.charAt(10)+"'HH:mm'"+last_modified_text.charAt(16)+"'");
+                        Date last_modified_date = date_fmt.parse(last_modified_text);
+                        long last_modified_time = last_modified_date.getTime(); // milliseconds since January 1, 1970, 00:00:00 GMT.
+                        msg += "last_modified_time: " + last_modified_time + "\n";
+                        file_dst.setLastModified(last_modified_time);
+                    }
+
+                    msg += file_src.getCanonicalPath() + " -> " + file_dst.getCanonicalPath() + "\n";
+                }
                 return createResponse(Response.Status.OK, "text/plain", msg);
             } catch (Exception e) {
-                msg += "error while writing file " + uri;
+                msg += "error while writing file " + uri + "\n" + stack_trace(e);
+                Log.e("httpd", msg);
                 return createResponse(Response.Status.INTERNAL_ERROR, "text/plain", msg);
             }
         } else if (verb == Method.DELETE) {
             // DELETE
-            if (!m_readwrite)
-                return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: HTTP server set to read-only mode.");
-            return createResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: HTTP DELETE not implemented.");
+            if (!m_preferences.getBoolean("http_allow_delete", http_allow_delete_default))
+                return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: http_allow_delete set to false.");
+            if (m_preferences.getBoolean("http_auth_delete", http_auth_delete_default) && !bAuthOk)
+                return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: http_auth_delete set to true and authentication failed.");
+
+            if (f==null || !f.exists()) {
+                return createResponse(Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, "NOT_FOUND: "+uri+" not found.\n");
+            } else {
+                boolean bOk = f.delete();
+                if (bOk)
+                    return createResponse(Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, "OK: path "+uri+" has been deleted.\n");
+                else
+                    return createResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "ERROR: path "+uri+" has NO Tbeen deleted.\n");
+            }
         } else {
-            if (f.exists()) {
+            if (m_preferences.getBoolean("http_auth_get", http_auth_get_default) && !bAuthOk)
+                return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: http_auth_get set to true and authentication failed.");
+
+            if (f!=null && f.exists()) {
                 if (!f.isDirectory()) {
                     /*
                     // initial dummy implementation
@@ -407,31 +600,46 @@ class MicroHTTPD extends NanoHTTPD {
                     */
 
                     String mimeTypeForFile = getMimeTypeForFile(uri);
-                    return serveFile(uri, headers, f, mimeTypeForFile);
+                    return serveFile(f.getAbsolutePath(), headers, f, mimeTypeForFile);
                 } else {
                     // folder
-
-                    if (params.containsKey("list")) {
+                    boolean index_html_exists = new File(f.getAbsolutePath()+"/index.html").exists();
+                    if (!index_html_exists || params.containsKey("list")) {
                         // list directory
-
                         boolean calculate_hashes = false;
                         if (params.containsKey("hash"))
                             calculate_hashes = Boolean.parseBoolean(params.get("hash"));
-                        return listDirectory(uri, f, calculate_hashes);
-                    } else if (new File(f.getAbsolutePath()+"/index.html").exists()) {
-
+                        if (params.containsKey("list") && !params.get("list").equalsIgnoreCase("html"))
+                            return listDirectoryJson(uri, f, calculate_hashes);
+                        else
+                            return listDirectoryHtml(uri, f);
+                    } else {
                         String mimeTypeForFile = getMimeTypeForFile(uri);
                         return serveFile(uri, headers, new File(f.getAbsolutePath() + "/index.html"), mimeTypeForFile);
-
-                    } else if (uri.equals("/")) {
-                        Response res = createResponse(Response.Status.REDIRECT, NanoHTTPD.MIME_HTML,
-                                "<html><body>Redirected: <a href=\"" + m_homepage + "\">" + m_homepage + "</a></body></html>");
-                        res.addHeader("Location", m_homepage);
-                        return res;
                     }
                 }
             } else {
-                // does not exist
+                // GET but uri does not exist
+                try {
+                    if (uri.equals("/")) {
+                        if (params.containsKey("list")) {
+                            // list directory
+                            if (params.containsKey("list") && !params.get("list").equalsIgnoreCase("html"))
+                                return listRootDirectoryJson();
+                            else
+                                return listRootDirectoryHtml();
+                        } else {
+                            String redirect_url = "/tools/index.html?" + query;
+                            Response res = createResponse(Response.Status.REDIRECT, NanoHTTPD.MIME_HTML,
+                                    "<html><body>Redirected: <a href=\"" + redirect_url + "\">" + redirect_url + "</a></body></html>");
+                            res.addHeader("Location", redirect_url);
+                            return res;
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("httpd", e.toString());
+                    return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found.\n" +e.toString());
+                }
 
             }
             return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found");
@@ -526,7 +734,7 @@ class MicroHTTPD extends NanoHTTPD {
     }
     */
 
-    protected Response listDirectory(String uri, File f, boolean calculate_hashes) {
+    protected Response listDirectoryJson(String uri, File f, boolean calculate_hashes) {
 
         List<String> directories = Arrays.asList(f.list(new FilenameFilter() {
             @Override
@@ -575,6 +783,62 @@ class MicroHTTPD extends NanoHTTPD {
             e.printStackTrace();
             return createResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, e.getMessage());
         }
+    }
+
+    protected Response listDirectoryHtml(String uri, File f) {
+
+        List<String> directories = Arrays.asList(f.list(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return new File(dir, name).isDirectory();
+            }
+        }));
+        Collections.sort(directories);
+
+        List<String> files = Arrays.asList(f.list(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return new File(dir, name).isFile();
+            }
+        }));
+        Collections.sort(files);
+
+        StringBuilder sb = new StringBuilder();
+        try {
+            sb.append("<html><body>");
+            for (String directory : directories) {
+                sb.append("<a href=\"" + directory + "/\">" + directory + "/</a><br/>");
+            }
+            for (String file : files) {
+                sb.append("<a href=\"" + file + "\">" + file + "</a><br/>");
+            }
+            sb.append("</body></html>");
+
+            return createResponse(Response.Status.OK, NanoHTTPD.MIME_HTML, sb.toString());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return createResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, e.getMessage());
+        }
+    }
+
+    protected Response listRootDirectoryJson() {
+        JSONArray ls = new JSONArray();
+        for (String directory : m_root_folders.keySet()) {
+            JSONObject item = new JSONObject();
+            try { item.put("name", directory+"/"); } catch (Exception e) {}
+            ls.put(item);
+        }
+        return createResponse(Response.Status.OK, NanoHTTPD.MIME_HTML, ls.toString());
+    }
+
+    protected Response listRootDirectoryHtml() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body>");
+        for (String directory : m_root_folders.keySet())
+            sb.append("<a href=\"" + directory + "/\">" + directory + "/</a><br/>");
+        sb.append("</body></html>");
+        return createResponse(Response.Status.OK, NanoHTTPD.MIME_HTML, sb.toString());
     }
 
     // Announce that the file server accepts partial content requests
@@ -677,5 +941,14 @@ class MicroHTTPD extends NanoHTTPD {
             e.printStackTrace();
         }
         return "";
+    }
+
+    private String stack_trace(Exception e) {
+        StringWriter writer = new StringWriter();
+        PrintWriter printWriter = new PrintWriter( writer );
+        e.printStackTrace(printWriter );
+        printWriter.flush();
+
+        return e.toString() + "\n" + writer.toString();
     }
 }

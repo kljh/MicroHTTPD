@@ -1,9 +1,7 @@
 var remote_server = "";
-if (location.hostname=="localhost") {
+if (location.protocol=="file:" || location.hostname=="localhost") {
 	// for remote debug purpose (e.g. page and scripts on desktop displaying file system content on device) 
-	remote_server = "http://10.26.199.106:8080"; //bof
-	remote_server = "http://192.168.43.1:8080";
-	remote_server = "http://192.168.0.9:8080";
+	remote_server = "http://192.168.1.15:8086";
 }
 
 function getParameterByName(name) {
@@ -14,30 +12,56 @@ function getParameterByName(name) {
 }
 
 function list_dw(folder, ls) {
-  document.write('Folder: '+folder+'<br/>');
-  document.write('<table>');
-  for (var i=0; i<ls.length; i++) {
+    var folder_split = folder.split("/");
+    folder_split.pop();
+    folder_split.shift();
+
+    document.write('<p>Folder: ');
+    for (var i=0; i<folder_split.length; i++) {
+        var txt = folder_split[i];
+        var href = location.pathname+'?path='+folder_split.slice(0,i+1).join("/")+'/';
+        document.write('<a href="'+href+'">'+txt+" /</a>");
+    }
+    document.write('</p><br/>');
+
+    document.write('<table>');
+    for (var i=0; i<ls.length; i++) {
     var f = ls[i].name;
     var is_dir = (f[f.length-1]=="/");
 
     document.write('<tr><td>');
     if (is_dir)
-    	document.write('<a href="'+location.pathname+'?path='+folder+f+'">'+f+'</a></td>'
-    	    + '<td>'+ls[i].length+'</td><tr>');
-	else 
-	   	document.write('<a href="'+remote_server+folder+f+'">'+f+'</a></td></td>'
+        document.write('<a href="'+location.pathname+'?path='+folder+f+'">'+f+'</a></td>'
+            + '<td>'+ls[i].length+'</td><tr>');
+    else
+        document.write('<a href="'+remote_server+folder+f+'">'+f+'</a></td></td>'
             + '<td>'+ls[i].length+'</td><tr>');;
     document.write('</td></tr>');
 
-  }
-  document.write('</table>');
+    }
+    document.write('</table>');
 }
 
 function list(folder, ls) {
     var div = document.getElementById('path_explorer');
 
-    var text = document.createTextNode('Folder: '+folder);
-    div.appendChild(text);
+    div.appendChild(document.createElement("br"));
+    div.appendChild(document.createTextNode('Folder: '));
+
+    var folder_split = folder.split("/");
+    if (folder_split[folder_split.length-1]=="") folder_split.pop();
+
+    for (var i=0; i<folder_split.length; i++) {
+        var txt = folder_split[i];
+        var href = location.pathname+'?path='+folder_split.slice(0,i+1).join("/")+'/';
+        var a = document.createElement("a");
+        a.appendChild(document.createTextNode(txt+"/"));
+        a.href = href;
+        div.appendChild(a);
+        div.appendChild(document.createTextNode(" "));
+    }
+    div.appendChild(document.createElement("br"));
+    div.appendChild(document.createElement("br"));
 
     var table = document.createElement("table");
     var tr = document.createElement("tr");

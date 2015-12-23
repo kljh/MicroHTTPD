@@ -1,5 +1,7 @@
+<!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!--
@@ -8,9 +10,11 @@
 <link rel="stylesheet" href="/dist/handsontable/0.12.5/handsontable.full.css">
 -->
 
-<script src="jquery_min.js"></script>
+<!--
+<script src="jquery_min_js.js"></script>
 <script src="handsontable_full_min_js.js"></script>
 <link rel="stylesheet" href="handsontable_full_min_css.css">
+-->
 
     <script src="list_js.js"></script>
 <style>
@@ -25,9 +29,22 @@
 </style>
 </head>
 <body>
+<!-- pre>
+    curl -i -X DELETE -u kljh:pioupiou             http://192.168.0.7:8086/downloads/up/tst/b.txt
+    curl -i -X PUT    -u kljh:pioupiou -d @up.txt  http://192.168.0.7:8086/downloads/up/tst/b.txt
+    curl -i -X POST   -u kljh:pioupiou -H "Content-Type: multipart/form-data" -H userid=7654 -F "userid=1234" -F "pwd=123" -F "data=@up.txt" -F "load=@up2.txt" http://192.168.0.7:8086/downloads/up/tst/b.txt
+</pre -->
 <div id="main_screen">
-    <div class="button">List files</div>
+    <!--
     <div class="button">Upload</div>
+    -->
+    Upload:
+    <form action="http://192.168.1.15:8086/downloads/uploads/" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" multiple>
+        Last-Modified :
+        <input type="datetime-local" name="Last-Modified" value="" placeholder="last modified date and time">
+        <input type="submit" value="Upload">
+    </form>
 </div>
 <div id="path_explorer"></div>
 </body>

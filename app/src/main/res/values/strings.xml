@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Micro HTTPD</string>
 
-    <string name="greetings">Based on NanoHTTPD by by Paul S. Hawke, Jarno Elonen, and Konstantinos Togias. Also using ZXing bar code library.</string>
+    <string name="greetings">Based on NanoHTTPD by by Paul S. Hawke, Jarno Elonen, and Konstantinos Togias. Using ZXing bar code library. Icon from Ryan L.</string>
     <string name="security"></string>
     <string name="action_settings">Settings</string>
 </resources>
