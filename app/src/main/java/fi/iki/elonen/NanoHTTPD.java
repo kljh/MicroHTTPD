@@ -1158,7 +1158,14 @@ public abstract class NanoHTTPD {
         OPTIONS,
         TRACE,
         CONNECT,
-        PATCH;
+        PATCH,
+        PROPFIND,
+        PROPPATCH,
+        MKCOL,
+        MOVE,
+        COPY,
+        LOCK,
+        UNLOCK;
 
         static Method lookup(String method) {
             for (Method m : Method.values()) {
@@ -1192,6 +1199,7 @@ public abstract class NanoHTTPD {
             ACCEPTED(202, "Accepted"),
             NO_CONTENT(204, "No Content"),
             PARTIAL_CONTENT(206, "Partial Content"),
+            MULTI_STATUS(207, "Multi-Status"),
             REDIRECT(301, "Moved Permanently"),
             NOT_MODIFIED(304, "Not Modified"),
             BAD_REQUEST(400, "Bad Request"),

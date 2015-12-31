@@ -173,13 +173,13 @@ public class MicroHTTPDActivity extends ActionBarActivity {
         }
 
         try {
-            m_micro_httpd.m_root_folders.put("tools", getExternalFilesDir(null).getAbsolutePath());
+            m_micro_httpd.m_root_folders.put("tools", getExternalFilesDir(null));
 
             // Copy Resources to ExternalFiles
             File file = new File(getExternalFilesDir(null), "index.html");
             //if (!file.exists())
             {
-                HashMap<String, Integer> deps = new HashMap<String, Integer>();
+                HashMap<String, Integer> deps = new HashMap<>();
                 deps.put("index.html", R.raw.index_html);
                 deps.put("list_js.js", R.raw.list_js);
                 deps.put("jquery_min.js", R.raw.jquery_min_js);
@@ -226,6 +226,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
                         Log.w("httpd", "Network address: "+inetAddress.toString());
                         if (!inetAddress.isLoopbackAddress()) {
                             String ipHostname = inetAddress.getHostAddress();
+                            Log.w("httpd", "IP Hostname "+ipHostname);
                             byte b[] = inetAddress.getAddress();
                             // (my_byte & 0xff) converts signed my_byte into a unsigned int
                             if (b.length==4) {
@@ -241,7 +242,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
                 Log.e("httpd", "Network exception: "+ ex.toString());
             }
             if (ipAddress==0)
-                ipAddress = 1 * 0x1000000 + 127; // little endian
+                ipAddress = 0x1000000 + 127; // little endian
             String httpd_addr = String.format("%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff), (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
             boolean http_secure = getPreferences(MODE_PRIVATE).getBoolean("http_secure", MicroHTTPD.http_secure_default);
             final String base_url = (http_secure?"https":"http") + "://" + httpd_addr + ":" + m_micro_httpd.getListeningPort() + "/";
@@ -395,24 +396,34 @@ public class BootUpReceiver extends BroadcastReceiver {
 class MicroHTTPD extends NanoHTTPD {
     public SharedPreferences m_preferences = null;
     public String m_http_password;
-    public Map<String, String> m_root_folders = new HashMap<String, String>();
+    public Map<String, File> m_root_folders = new HashMap<>();
 
     public MicroHTTPD() throws IOException {
         super(8086); // 0 to select port automatically
         super.MIME_TYPES = this.MIME_TYPES;
 
         // lines below may throw
-        //m_root_folders.put("documents", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).getCanonicalPath());
-        m_root_folders.put("downloads", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getCanonicalPath());
-        m_root_folders.put("movies", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).getCanonicalPath());
-        m_root_folders.put("music", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).getCanonicalPath());
-        m_root_folders.put("photos", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getCanonicalPath());
-        m_root_folders.put("pictures", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).getCanonicalPath());
-        //m_root_folders.put("podcasts", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS).getCanonicalPath());
-        m_root_folders.put("root", "");
-        m_root_folders.put("sdcard", Environment.getExternalStorageDirectory().getCanonicalPath());
-        //m_root_folders.put("tools",  getExternalFilesDir(null).getAbsolutePath());
+        //m_root_folders.put("documents", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
+        m_root_folders.put("downloads", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
+        m_root_folders.put("movies", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
+        m_root_folders.put("music", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
+        m_root_folders.put("photos", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
+        m_root_folders.put("pictures", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
+        //m_root_folders.put("podcasts", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS));
+        m_root_folders.put("root", new File(""));
+        m_root_folders.put("sdcard", Environment.getExternalStorageDirectory());
+        //m_root_folders.put("tools",  getExternalFilesDir(null));
 
+    }
+
+    public File full_path(String uri) {
+        String[] uri_split = uri.split("\\/");
+        String uri_root_folder = uri_split.length>1 ? uri_split[1] : "";
+        File f = null;
+        if (m_root_folders.containsKey(uri_root_folder)) {
+            f = new File(m_root_folders.get(uri_root_folder), uri.substring(uri_root_folder.length()+1));
+        }
+        return f;
     }
 
     static public boolean
@@ -431,15 +442,7 @@ class MicroHTTPD extends NanoHTTPD {
         String uri = session.getUri(); // excl query
         Method verb = session.getMethod(); // GET, POST, PUT, etc.
 
-        String[] uri_split = uri.split("\\/");
-        String uri_root_folder = uri_split.length>1 ? uri_split[1] : "";
-        File f = null;
-        if (m_root_folders.containsKey(uri_root_folder)) {
-            uri = m_root_folders.get(uri_root_folder) + uri.substring(uri_root_folder.length()+1);
-            f = new File(uri).getAbsoluteFile();
-        } else {
-            //return createResponse(Response.Status.NOT_FOUND, "text/plain", uri_root_folder + "(" + uri + ") not found in m_root_folders");
-        }
+        File f = full_path(uri);
 
         String msg = "";
 
@@ -458,11 +461,7 @@ class MicroHTTPD extends NanoHTTPD {
 
         if (verb == Method.OPTIONS) {
             // OPTIONS (to ask permission to GET, POST, PUT)
-            NanoHTTPD.Response res = createResponse(Response.Status.OK, "text/plain", "");
-            res.addHeader("Access-Control-Allow-Origin", "*");
-            res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT");
-            res.addHeader("Access-Control-Allow-Headers", "*");
-            return res;
+            return NanoWebDAV.webdav_options(session);
         } else if (verb == Method.PUT || verb == Method.POST) {
             // PUT
             if (!m_preferences.getBoolean("http_allow_put", http_allow_put_default))
@@ -579,7 +578,7 @@ class MicroHTTPD extends NanoHTTPD {
                 else
                     return createResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "ERROR: path "+uri+" has NO Tbeen deleted.\n");
             }
-        } else {
+        } else if (verb == Method.GET) {
             if (m_preferences.getBoolean("http_auth_get", http_auth_get_default) && !bAuthOk)
                 return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: http_auth_get set to true and authentication failed.");
 
@@ -643,6 +642,29 @@ class MicroHTTPD extends NanoHTTPD {
 
             }
             return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found");
+        }
+
+        else {
+            try {
+                if (verb == Method.PROPFIND)
+                    return NanoWebDAV.webdav_propfind(uri, f, session, this);
+                else if (verb == Method.PROPPATCH)
+                    return NanoWebDAV.webdav_proppatch(session);
+                else if (verb == Method.MKCOL)
+                    return NanoWebDAV.webdav_mkcol(uri, f, session);
+                else if (verb == Method.MOVE)
+                    return NanoWebDAV.webdav_move(uri, f, session, this);
+                else if (verb == Method.DELETE)
+                    return NanoWebDAV.webdav_delete(uri, f, session);
+                else if (verb == Method.LOCK)
+                    return NanoWebDAV.webdav_lock(session);
+                else if (verb == Method.UNLOCK)
+                    return NanoWebDAV.webdav_unlock(session);
+                else
+                    return createResponse(Response.Status.NOT_IMPLEMENTED, "text/plain", "HTTP verb not supported");
+            } catch (Exception e) {
+                return createResponse(Response.Status.INTERNAL_ERROR, "text/plain", "HTTP WEBDAV EXCEPTION "+e.getMessage());
+            }
         }
     }
 
@@ -852,7 +874,7 @@ class MicroHTTPD extends NanoHTTPD {
     }
 
     // Announce that the file server accepts partial content requests
-    private Response createResponse(Response.Status status, String mimeType, String message) {
+    public Response createResponse(Response.Status status, String mimeType, String message) {
         NanoHTTPD.Response res = NanoHTTPD.newFixedLengthResponse(status, mimeType, message);
         res.addHeader("Accept-Ranges", "bytes");
         res.addHeader("Access-Control-Allow-Origin", "*");
