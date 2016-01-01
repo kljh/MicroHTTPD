@@ -1,7 +1,7 @@
 HTTP/1.1 207 Multi-Status
 content-type: application/xml; charset=utf-8
-DAV: 1, 2
-Date: Tue, 29 Dec 2015 12:28:36 GMT
+DAV: 1,2
+Date: --
 Connection: keep-alive
 Transfer-Encoding: chunked
 
@@ -41,12 +41,12 @@ Transfer-Encoding: chunked
 		<d:href>/mysub/file.txt</d:href>
 		<d:propstat>
 			<d:prop>
-				<d:creationdate>2015-12-29T08:30:43.000Z</d:creationdate>
+				<d:creationdate>2015-12-30T08:05:39.000Z</d:creationdate>
 				<d:displayname>file.txt</d:displayname>
 				<d:name>file.txt</d:name>
-				<d:getcontentlength>7</d:getcontentlength>
+				<d:getcontentlength>11</d:getcontentlength>
 				<d:getcontenttype>text/plain</d:getcontenttype>
-				<d:getlastmodified>Tue, 29 Dec 2015 08:30:43 GMT</d:getlastmodified>
+				<d:getlastmodified>Wed, 30 Dec 2015 08:05:39 GMT</d:getlastmodified>
 				<d:resourcetype/>
 				<d:iscollection>FALSE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>
