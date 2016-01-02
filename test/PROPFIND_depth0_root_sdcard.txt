@@ -8,15 +8,15 @@ Transfer-Encoding: chunked
 <?xml version="1.0" encoding="utf-8" ?>
 <d:multistatus xmlns:cs="http://calendarserver.org/ns/" xmlns:cal="urn:ietf:params:xml:ns:caldav" xmlns:card="urn:ietf:params:xml:ns:carddav" xmlns:d="DAV:">
 	<d:response>
-		<d:href>/mysub/</d:href>
+		<d:href>/sdcard/</d:href>
 		<d:propstat>
 			<d:prop>
 				<d:creationdate/>
-				<d:displayname>mysub</d:displayname>
-				<d:name>mysub</d:name>
+				<d:displayname>sdcard</d:displayname>
+				<d:name>sdcard</d:name>
 				<d:getcontentlength/>
 				<d:getcontenttype>text/html</d:getcontenttype>
-				<d:getlastmodified>Tue, 29 Dec 2015 09:59:38 GMT</d:getlastmodified>
+				
 				<d:resourcetype><d:collection/></d:resourcetype>
 				<d:iscollection>TRUE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>

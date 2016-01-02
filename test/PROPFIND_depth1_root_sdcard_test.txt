@@ -8,15 +8,15 @@ Transfer-Encoding: chunked
 <?xml version="1.0" encoding="utf-8" ?>
 <d:multistatus xmlns:cs="http://calendarserver.org/ns/" xmlns:cal="urn:ietf:params:xml:ns:caldav" xmlns:card="urn:ietf:params:xml:ns:carddav" xmlns:d="DAV:">
 	<d:response>
-		<d:href>/mysub/</d:href>
+		<d:href>/sdcard/test/</d:href>
 		<d:propstat>
 			<d:prop>
 				<d:creationdate/>
-				<d:displayname>mysub</d:displayname>
-				<d:name>mysub</d:name>
+				<d:displayname>test</d:displayname>
+				<d:name>test</d:name>
 				<d:getcontentlength/>
 				<d:getcontenttype>text/html</d:getcontenttype>
-				<d:getlastmodified>Tue, 29 Dec 2015 09:59:38 GMT</d:getlastmodified>
+				
 				<d:resourcetype><d:collection/></d:resourcetype>
 				<d:iscollection>TRUE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>
@@ -38,15 +38,45 @@ Transfer-Encoding: chunked
 		</d:propstat>
 	</d:response>
 	<d:response>
-		<d:href>/mysub/file.txt</d:href>
+		<d:href>/sdcard/test/another folder/</d:href>
 		<d:propstat>
 			<d:prop>
-				<d:creationdate>2015-12-30T08:05:39.000Z</d:creationdate>
-				<d:displayname>file.txt</d:displayname>
-				<d:name>file.txt</d:name>
-				<d:getcontentlength>11</d:getcontentlength>
+				<d:creationdate/>
+				<d:displayname>another folder</d:displayname>
+				<d:name>another folder</d:name>
+				<d:getcontentlength/>
+				<d:getcontenttype>text/html</d:getcontenttype>
+				
+				<d:resourcetype><d:collection/></d:resourcetype>
+				<d:iscollection>TRUE</d:iscollection>
+				<d:isreadonly>TRUE</d:isreadonly>
+			</d:prop>
+			<d:status>HTTP/1.1 200 OK</d:status>
+		</d:propstat>
+		<d:propstat>
+			<d:prop>
+				<d:isroot/>
+				<d:lastaccessed/>
+				<d:isstructureddocument/>
+				<d:parentname/>
+				<d:defaultdocument/>
+				<d:ishidden/>
+				<d:contentclass/>
+				<d:getcontentlanguage/>
+			</d:prop>
+			<d:status>HTTP/1.1 404 Not Found</d:status>
+		</d:propstat>
+	</d:response>
+	<d:response>
+		<d:href>/sdcard/test/pouet.txt</d:href>
+		<d:propstat>
+			<d:prop>
+				<d:creationdate>2016-01-02T00:13:27.000Z</d:creationdate>
+				<d:displayname>pouet.txt</d:displayname>
+				<d:name>pouet.txt</d:name>
+				<d:getcontentlength>15</d:getcontentlength>
 				<d:getcontenttype>text/plain</d:getcontenttype>
-				<d:getlastmodified>Wed, 30 Dec 2015 08:05:39 GMT</d:getlastmodified>
+				
 				<d:resourcetype/>
 				<d:iscollection>FALSE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>
@@ -68,15 +98,15 @@ Transfer-Encoding: chunked
 		</d:propstat>
 	</d:response>
 	<d:response>
-		<d:href>/mysub/hub-hexagon.png</d:href>
+		<d:href>/sdcard/test/prose.txt</d:href>
 		<d:propstat>
 			<d:prop>
-				<d:creationdate>2015-12-29T08:32:52.000Z</d:creationdate>
-				<d:displayname>hub-hexagon.png</d:displayname>
-				<d:name>hub-hexagon.png</d:name>
-				<d:getcontentlength>6870</d:getcontentlength>
-				<d:getcontenttype>image/png</d:getcontenttype>
-				<d:getlastmodified>Tue, 29 Dec 2015 08:32:52 GMT</d:getlastmodified>
+				<d:creationdate>2016-01-02T00:13:27.000Z</d:creationdate>
+				<d:displayname>prose.txt</d:displayname>
+				<d:name>prose.txt</d:name>
+				<d:getcontentlength>15</d:getcontentlength>
+				<d:getcontenttype>text/plain</d:getcontenttype>
+				
 				<d:resourcetype/>
 				<d:iscollection>FALSE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>

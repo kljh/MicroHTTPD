@@ -8,12 +8,12 @@ Transfer-Encoding: chunked
 <?xml version="1.0" encoding="utf-8" ?>
 <d:multistatus xmlns:cs="http://calendarserver.org/ns/" xmlns:cal="urn:ietf:params:xml:ns:caldav" xmlns:card="urn:ietf:params:xml:ns:carddav" xmlns:d="DAV:">
 	<d:response>
-		<d:href>/</d:href>
+		<d:href>/sdcard/</d:href>
 		<d:propstat>
 			<d:prop>
 				<d:creationdate/>
-				<d:displayname>root</d:displayname>
-				<d:name>root</d:name>
+				<d:displayname>sdcard</d:displayname>
+				<d:name>sdcard</d:name>
 				<d:getcontentlength/>
 				<d:getcontenttype>text/html</d:getcontenttype>
 				
@@ -38,43 +38,13 @@ Transfer-Encoding: chunked
 		</d:propstat>
 	</d:response>
 	<d:response>
-		<d:href>/file.html</d:href>
+		<d:href>/sdcard/file.txt</d:href>
 		<d:propstat>
 			<d:prop>
-				<d:creationdate>2015-12-29T10:15:28.000Z</d:creationdate>
-				<d:displayname>file.html</d:displayname>
-				<d:name>file.html</d:name>
-				<d:getcontentlength>38</d:getcontentlength>
-				<d:getcontenttype>text/html</d:getcontenttype>
-				
-				<d:resourcetype/>
-				<d:iscollection>FALSE</d:iscollection>
-				<d:isreadonly>TRUE</d:isreadonly>
-			</d:prop>
-			<d:status>HTTP/1.1 200 OK</d:status>
-		</d:propstat>
-		<d:propstat>
-			<d:prop>
-				<d:isroot/>
-				<d:lastaccessed/>
-				<d:isstructureddocument/>
-				<d:parentname/>
-				<d:defaultdocument/>
-				<d:ishidden/>
-				<d:contentclass/>
-				<d:getcontentlanguage/>
-			</d:prop>
-			<d:status>HTTP/1.1 404 Not Found</d:status>
-		</d:propstat>
-	</d:response>
-	<d:response>
-		<d:href>/file.txt</d:href>
-		<d:propstat>
-			<d:prop>
-				<d:creationdate>2015-12-29T10:03:19.000Z</d:creationdate>
+				<d:creationdate>2015-12-30T08:05:39.000Z</d:creationdate>
 				<d:displayname>file.txt</d:displayname>
 				<d:name>file.txt</d:name>
-				<d:getcontentlength>7</d:getcontentlength>
+				<d:getcontentlength>11</d:getcontentlength>
 				<d:getcontenttype>text/plain</d:getcontenttype>
 				
 				<d:resourcetype/>
@@ -98,12 +68,42 @@ Transfer-Encoding: chunked
 		</d:propstat>
 	</d:response>
 	<d:response>
-		<d:href>/sdcard/</d:href>
+		<d:href>/sdcard/hub-hexagon.png</d:href>
+		<d:propstat>
+			<d:prop>
+				<d:creationdate>2015-12-29T08:32:52.000Z</d:creationdate>
+				<d:displayname>hub-hexagon.png</d:displayname>
+				<d:name>hub-hexagon.png</d:name>
+				<d:getcontentlength>6870</d:getcontentlength>
+				<d:getcontenttype>image/png</d:getcontenttype>
+				
+				<d:resourcetype/>
+				<d:iscollection>FALSE</d:iscollection>
+				<d:isreadonly>TRUE</d:isreadonly>
+			</d:prop>
+			<d:status>HTTP/1.1 200 OK</d:status>
+		</d:propstat>
+		<d:propstat>
+			<d:prop>
+				<d:isroot/>
+				<d:lastaccessed/>
+				<d:isstructureddocument/>
+				<d:parentname/>
+				<d:defaultdocument/>
+				<d:ishidden/>
+				<d:contentclass/>
+				<d:getcontentlanguage/>
+			</d:prop>
+			<d:status>HTTP/1.1 404 Not Found</d:status>
+		</d:propstat>
+	</d:response>
+	<d:response>
+		<d:href>/sdcard/tmp/</d:href>
 		<d:propstat>
 			<d:prop>
 				<d:creationdate/>
-				<d:displayname>sdcard</d:displayname>
-				<d:name>sdcard</d:name>
+				<d:displayname>tmp</d:displayname>
+				<d:name>tmp</d:name>
 				<d:getcontentlength/>
 				<d:getcontenttype>text/html</d:getcontenttype>
 				
