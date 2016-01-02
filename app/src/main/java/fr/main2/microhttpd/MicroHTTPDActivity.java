@@ -885,7 +885,7 @@ class MicroHTTPD extends NanoHTTPD {
         NanoHTTPD.Response res = NanoHTTPD.newFixedLengthResponse(status, mimeType, message, length);
         res.addHeader("Accept-Ranges", "bytes");
         res.addHeader("Access-Control-Allow-Origin", "*");
-        res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.addHeader("Access-Control-Allow-Methods", "HEAD, GET, PUT, POST, DELETE, OPTIONS, PROPFIND, PROPPATCH, MKCOL, MOVE, COPY, LOCK, UNLOCK");
         res.addHeader("Access-Control-Allow-Headers", "*");
         return res;
     }
@@ -895,7 +895,7 @@ class MicroHTTPD extends NanoHTTPD {
         NanoHTTPD.Response res = NanoHTTPD.newFixedLengthResponse(status, mimeType, message);
         res.addHeader("Accept-Ranges", "bytes");
         res.addHeader("Access-Control-Allow-Origin", "*");
-        res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.addHeader("Access-Control-Allow-Methods", "HEAD, GET, PUT, POST, DELETE, OPTIONS, PROPFIND, PROPPATCH, MKCOL, MOVE, COPY, LOCK, UNLOCK");
         res.addHeader("Access-Control-Allow-Headers", "*");
         return res;
     }

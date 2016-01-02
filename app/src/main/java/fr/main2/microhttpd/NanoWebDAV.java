@@ -28,7 +28,7 @@ public class NanoWebDAV {
     static NanoHTTPD.Response createDavResponse(NanoHTTPD.Response.Status status, String mimeType, String message) {
         NanoHTTPD.Response res = NanoHTTPD.newFixedLengthResponse(status, mimeType, message);
         res.addHeader("Access-Control-Allow-Origin", "*");
-        res.addHeader("Access-Control-Allow-Methods", "HEAD,GET,POST,PUT,DELETE,OPTIONS,PROPFIND,PROPPATCH,MKCOL,MOVE,COPY,LOCK,UNLOCK");
+        res.addHeader("Access-Control-Allow-Methods", "HEAD, GET, PUT, POST, DELETE, OPTIONS, PROPFIND, PROPPATCH, MKCOL, MOVE, COPY, LOCK, UNLOCK");
         res.addHeader("Access-Control-Allow-Headers", "*");
         return res;
     }
@@ -37,7 +37,7 @@ public class NanoWebDAV {
         webdav_log_request(req);
 
         NanoHTTPD.Response res = createDavResponse(NanoHTTPD.Response.Status.OK, no_content_mime, "");
-        res.addHeader("Allow", "HEAD,GET,POST,PUT,DELETE,OPTIONS,PROPFIND,PROPPATCH,MKCOL,MOVE,COPY,LOCK,UNLOCK");
+        res.addHeader("Allow", "HEAD, GET, PUT, POST, DELETE, OPTIONS, PROPFIND, PROPPATCH, MKCOL, MOVE, COPY, LOCK, UNLOCK");
         res.addHeader("MS-Author-Via", "DAV"); // mandatory fo WinXP
         res.addHeader("DAV", "1,2");
         res.addHeader("Content-Length", "0");
@@ -65,20 +65,32 @@ public class NanoWebDAV {
 
     public static NanoHTTPD.Response webdav_move(String src_url_path, File src_full_path, NanoHTTPD.IHTTPSession req, MicroHTTPD httpd) {
         try {
+            Log.w("httpd_webdav", "HTTP MOVE src: " + src_url_path);
+
             Map<String,String> headers = req.getHeaders();
             String dst_url_path = java.net.URLDecoder.decode(headers.get("destination"), "UTF-8");
-            Log.d("httpd_webdav", "HTTP MOVE dst: " + dst_url_path);
+
+            Log.w("httpd_webdav", "HTTP MOVE dst URL: " + dst_url_path);
             if (dst_url_path.startsWith("http")) {
                 String dst_url_split[] = dst_url_path.split("/");
-                Arrays.copyOfRange(dst_url_split, 3, dst_url_split.length);
-                dst_url_path = TextUtils.join("/", dst_url_split);
+                dst_url_split = Arrays.copyOfRange(dst_url_split, 3, dst_url_split.length);
+                dst_url_path = "/"+TextUtils.join("/", dst_url_split);
             }
+            Log.d("httpd_webdav", "HTTP MOVE dst URL PATH: " + dst_url_path);
 
             File dst_full_path = httpd.full_path(dst_url_path);
             Log.d("httpd_webdav", "HTTP MOVE dst: " + dst_full_path);
 
+            if (dst_full_path.exists()) {
+                Log.e("httpd_webdav", dst_full_path.getAbsolutePath()+" already exists.");
+                return createDavResponse(NanoHTTPD.Response.Status.CONFLICT, no_content_mime, "");
+            }
 
-            src_full_path.renameTo(dst_full_path);
+            boolean bOk = src_full_path.renameTo(dst_full_path);
+            if (!bOk) {
+                Log.e("httpd_webdav", src_full_path.getAbsolutePath()+" renameTo "+dst_full_path.getAbsolutePath()+" not complete");
+                return createDavResponse(NanoHTTPD.Response.Status.CONFLICT, no_content_mime, "");
+            }
 
             return createDavResponse(NanoHTTPD.Response.Status.CREATED, no_content_mime, "");
         } catch (Exception e) {
@@ -95,8 +107,8 @@ public class NanoWebDAV {
             Log.d("httpd_webdav", "HTTP COPY dst: " + dst_url_path);
             if (dst_url_path.startsWith("http")) {
                 String dst_url_split[] = dst_url_path.split("/");
-                Arrays.copyOfRange(dst_url_split, 3, dst_url_split.length);
-                dst_url_path = TextUtils.join("/", dst_url_split);
+                dst_url_split = Arrays.copyOfRange(dst_url_split, 3, dst_url_split.length);
+                dst_url_path = "/"+TextUtils.join("/", dst_url_split);
             }
 
             File dst_full_path = httpd.full_path(dst_url_path);
@@ -210,7 +222,12 @@ public class NanoWebDAV {
                 }
             } else if (files!=null) {
                 for (File file: files) {
-                    webdav_propfind_response(reply_body, (new File(url_path, file.getName())).getAbsolutePath(), file, requested_fields);
+                    if (file.isDirectory())
+                        webdav_propfind_response(reply_body, (new File(url_path, file.getName())).getAbsolutePath(), file, requested_fields);
+                }
+                for (File file: files) {
+                    if (!file.isDirectory())
+                        webdav_propfind_response(reply_body, (new File(url_path, file.getName())).getAbsolutePath(), file, requested_fields);
                 }
             }
 

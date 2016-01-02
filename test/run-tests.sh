@@ -41,6 +41,13 @@ curl -i -X PROPFIND -H "Depth: 0" ${host}sdcard/test > PROPFIND_depth0_root_sdca
 curl -i -X PROPFIND -H "Depth: 1" ${host}sdcard/test > PROPFIND_depth1_root_sdcard_test_POSTDELETE.txt
 
 
+curl -i -X PROPFIND -H "Depth: 0" ${host}photos/ > PROPFIND_depth0_root_photos_.txt
+curl -i -X PROPFIND -H "Depth: 1" ${host}photos/ > PROPFIND_depth1_root_photos_.txt
+curl -i -X PROPFIND -H "Depth: 0" ${host}photos/MISC > PROPFIND_depth0_root_photos_misc.txt
+curl -i -X PROPFIND -H "Depth: 1" ${host}photos/MISC > PROPFIND_depth1_root_photos_misc.txt
+curl -i -X PROPFIND -H "Depth: 0" ${host}photos/Camera > PROPFIND_depth0_root_photos_camera.txt
+curl -i -X PROPFIND -H "Depth: 1" ${host}photos/Camera > PROPFIND_depth1_root_photos_camera.txt
+
 sed -i '' -e 's/^Date: .*$/Date: --/g' *.txt
 sed -i '' -e 's/<d:getlastmodified>.*<\/d:getlastmodified>/<d:getlastmodified\/>/g' *.txt
 sed -i '' -e 's/<d:creationdate>.*<\/d:creationdate>/<d:creationdate\/>/g' *.txt
