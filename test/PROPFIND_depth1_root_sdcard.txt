@@ -1,5 +1,5 @@
 HTTP/1.1 207 Multi-Status
-content-type: application/xml; charset=utf-8
+Content-type: application/xml; charset=utf-8
 DAV: 1,2
 Date: --
 Connection: keep-alive
@@ -16,97 +16,7 @@ Transfer-Encoding: chunked
 				<d:name>sdcard</d:name>
 				<d:getcontentlength/>
 				<d:getcontenttype>text/html</d:getcontenttype>
-				
-				<d:resourcetype><d:collection/></d:resourcetype>
-				<d:iscollection>TRUE</d:iscollection>
-				<d:isreadonly>TRUE</d:isreadonly>
-			</d:prop>
-			<d:status>HTTP/1.1 200 OK</d:status>
-		</d:propstat>
-		<d:propstat>
-			<d:prop>
-				<d:isroot/>
-				<d:lastaccessed/>
-				<d:isstructureddocument/>
-				<d:parentname/>
-				<d:defaultdocument/>
-				<d:ishidden/>
-				<d:contentclass/>
-				<d:getcontentlanguage/>
-			</d:prop>
-			<d:status>HTTP/1.1 404 Not Found</d:status>
-		</d:propstat>
-	</d:response>
-	<d:response>
-		<d:href>/sdcard/file.txt</d:href>
-		<d:propstat>
-			<d:prop>
-				<d:creationdate>2015-12-30T08:05:39.000Z</d:creationdate>
-				<d:displayname>file.txt</d:displayname>
-				<d:name>file.txt</d:name>
-				<d:getcontentlength>11</d:getcontentlength>
-				<d:getcontenttype>text/plain</d:getcontenttype>
-				
-				<d:resourcetype/>
-				<d:iscollection>FALSE</d:iscollection>
-				<d:isreadonly>TRUE</d:isreadonly>
-			</d:prop>
-			<d:status>HTTP/1.1 200 OK</d:status>
-		</d:propstat>
-		<d:propstat>
-			<d:prop>
-				<d:isroot/>
-				<d:lastaccessed/>
-				<d:isstructureddocument/>
-				<d:parentname/>
-				<d:defaultdocument/>
-				<d:ishidden/>
-				<d:contentclass/>
-				<d:getcontentlanguage/>
-			</d:prop>
-			<d:status>HTTP/1.1 404 Not Found</d:status>
-		</d:propstat>
-	</d:response>
-	<d:response>
-		<d:href>/sdcard/hub-hexagon.png</d:href>
-		<d:propstat>
-			<d:prop>
-				<d:creationdate>2015-12-29T08:32:52.000Z</d:creationdate>
-				<d:displayname>hub-hexagon.png</d:displayname>
-				<d:name>hub-hexagon.png</d:name>
-				<d:getcontentlength>6870</d:getcontentlength>
-				<d:getcontenttype>image/png</d:getcontenttype>
-				
-				<d:resourcetype/>
-				<d:iscollection>FALSE</d:iscollection>
-				<d:isreadonly>TRUE</d:isreadonly>
-			</d:prop>
-			<d:status>HTTP/1.1 200 OK</d:status>
-		</d:propstat>
-		<d:propstat>
-			<d:prop>
-				<d:isroot/>
-				<d:lastaccessed/>
-				<d:isstructureddocument/>
-				<d:parentname/>
-				<d:defaultdocument/>
-				<d:ishidden/>
-				<d:contentclass/>
-				<d:getcontentlanguage/>
-			</d:prop>
-			<d:status>HTTP/1.1 404 Not Found</d:status>
-		</d:propstat>
-	</d:response>
-	<d:response>
-		<d:href>/sdcard/tmp/</d:href>
-		<d:propstat>
-			<d:prop>
-				<d:creationdate/>
-				<d:displayname>tmp</d:displayname>
-				<d:name>tmp</d:name>
-				<d:getcontentlength/>
-				<d:getcontenttype>text/html</d:getcontenttype>
-				
+				<d:getlastmodified/>
 				<d:resourcetype><d:collection/></d:resourcetype>
 				<d:iscollection>TRUE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>

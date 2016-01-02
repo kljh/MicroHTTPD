@@ -1,5 +1,5 @@
 HTTP/1.1 207 Multi-Status
-content-type: application/xml; charset=utf-8
+Content-type: application/xml; charset=utf-8
 DAV: 1,2
 Date: --
 Connection: keep-alive
@@ -16,7 +16,7 @@ Transfer-Encoding: chunked
 				<d:name>test</d:name>
 				<d:getcontentlength/>
 				<d:getcontenttype>text/html</d:getcontenttype>
-				
+				<d:getlastmodified/>
 				<d:resourcetype><d:collection/></d:resourcetype>
 				<d:iscollection>TRUE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>
@@ -46,7 +46,7 @@ Transfer-Encoding: chunked
 				<d:name>another folder</d:name>
 				<d:getcontentlength/>
 				<d:getcontenttype>text/html</d:getcontenttype>
-				
+				<d:getlastmodified/>
 				<d:resourcetype><d:collection/></d:resourcetype>
 				<d:iscollection>TRUE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>
@@ -71,12 +71,12 @@ Transfer-Encoding: chunked
 		<d:href>/sdcard/test/pouet.txt</d:href>
 		<d:propstat>
 			<d:prop>
-				<d:creationdate>2016-01-02T00:13:27.000Z</d:creationdate>
+				<d:creationdate/>
 				<d:displayname>pouet.txt</d:displayname>
 				<d:name>pouet.txt</d:name>
-				<d:getcontentlength>15</d:getcontentlength>
+				<d:getcontentlength>8</d:getcontentlength>
 				<d:getcontenttype>text/plain</d:getcontenttype>
-				
+				<d:getlastmodified/>
 				<d:resourcetype/>
 				<d:iscollection>FALSE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>
@@ -101,12 +101,12 @@ Transfer-Encoding: chunked
 		<d:href>/sdcard/test/prose.txt</d:href>
 		<d:propstat>
 			<d:prop>
-				<d:creationdate>2016-01-02T00:13:27.000Z</d:creationdate>
+				<d:creationdate/>
 				<d:displayname>prose.txt</d:displayname>
 				<d:name>prose.txt</d:name>
-				<d:getcontentlength>15</d:getcontentlength>
+				<d:getcontentlength>8</d:getcontentlength>
 				<d:getcontenttype>text/plain</d:getcontenttype>
-				
+				<d:getlastmodified/>
 				<d:resourcetype/>
 				<d:iscollection>FALSE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>

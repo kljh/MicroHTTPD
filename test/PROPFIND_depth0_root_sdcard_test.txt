@@ -1,5 +1,5 @@
 HTTP/1.1 207 Multi-Status
-content-type: application/xml; charset=utf-8
+Content-type: application/xml; charset=utf-8
 DAV: 1,2
 Date: --
 Connection: keep-alive
@@ -16,7 +16,7 @@ Transfer-Encoding: chunked
 				<d:name>test</d:name>
 				<d:getcontentlength/>
 				<d:getcontenttype>text/html</d:getcontenttype>
-				
+				<d:getlastmodified/>
 				<d:resourcetype><d:collection/></d:resourcetype>
 				<d:iscollection>TRUE</d:iscollection>
 				<d:isreadonly>TRUE</d:isreadonly>

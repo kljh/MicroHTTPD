@@ -16,15 +16,16 @@ echo host $host
 
 
 curl -i -X OPTIONS http://localhost:8080/ > OPTIONS.txt
-#curl -i -X PROPFIND -H "Depth: 0" ${host} > PROPFIND_depth0_root.txt
-#curl -i -X PROPFIND -H "Depth: 1" ${host} > PROPFIND_depth1_root.txt
-#curl -i -X PROPFIND -H "Depth: 0" ${host}sdcard/ > PROPFIND_depth0_root_sdcard.txt
-#curl -i -X PROPFIND -H "Depth: 1" ${host}sdcard/ > PROPFIND_depth1_root_sdcard.txt
+curl -i -X PROPFIND -H "Depth: 0" ${host} > PROPFIND_depth0_root.txt
+curl -i -X PROPFIND -H "Depth: 1" ${host} > PROPFIND_depth1_root.txt
+curl -i -X PROPFIND -H "Depth: 0" ${host}sdcard/ > PROPFIND_depth0_root_sdcard.txt
+curl -i -X PROPFIND -H "Depth: 1" ${host}sdcard/ > PROPFIND_depth1_root_sdcard.txt
+
 
 curl -i -X MKCOL ${host}sdcard/test > MKCOL_sdcard_test.txt
 curl -i -X MKCOL ${host}sdcard/test/another%20folder > MKCOL_sdcard_test_anotherSPACEfolder.txt
-curl -i -X PUT   -d "my prose"   ${host}sdcard/test/prose.txt > PUT_sdcard_test_prose.txt
-curl -i -X PUT   -d "my rimes"  ${host}sdcard/test/rimes.txt > PUT_sdcard_test_rimes.txt
+curl -i -X PUT   --data-binary "my prose" -H "Content-type: text/plain"  ${host}sdcard/test/prose.txt > PUT_sdcard_test_prose.txt
+curl -i -X PUT   --data-binary "my rimes" -H "Content-type: text/plain"  ${host}sdcard/test/rimes.txt > PUT_sdcard_test_rimes.txt
 curl -i -X MOVE  -H "Destination: /sdcard/test/pouet.txt" ${host}sdcard/test/rimes.txt > MOVE_sdcard_test_pouet.txt
 curl -i -X GET   ${host}sdcard/test/prose.txt > GET_sdcard_test_prose.txt
 curl -i -X GET   ${host}sdcard/test/pouet.txt > GET_sdcard_test_pouet.txt
