@@ -10,16 +10,16 @@ if [ "$#" -eq 1 ];	then
 	host=$1
 else
 	host=http://localhost:8080/
-	#host=http://192.168.0.13:8086/
+	host=http://192.168.0.13:8086/
 fi
 echo host $host
 
 
 curl -i -X OPTIONS http://localhost:8080/ > OPTIONS.txt
-curl -i -X PROPFIND -H "Depth: 0" ${host} > PROPFIND_depth0_root.txt
-curl -i -X PROPFIND -H "Depth: 1" ${host} > PROPFIND_depth1_root.txt
-curl -i -X PROPFIND -H "Depth: 0" ${host}sdcard/ > PROPFIND_depth0_root_sdcard.txt
-curl -i -X PROPFIND -H "Depth: 1" ${host}sdcard/ > PROPFIND_depth1_root_sdcard.txt
+#curl -i -X PROPFIND -H "Depth: 0" ${host} > PROPFIND_depth0_root.txt
+#curl -i -X PROPFIND -H "Depth: 1" ${host} > PROPFIND_depth1_root.txt
+#curl -i -X PROPFIND -H "Depth: 0" ${host}sdcard/ > PROPFIND_depth0_root_sdcard.txt
+#curl -i -X PROPFIND -H "Depth: 1" ${host}sdcard/ > PROPFIND_depth1_root_sdcard.txt
 
 curl -i -X MKCOL ${host}sdcard/test > MKCOL_sdcard_test.txt
 curl -i -X MKCOL ${host}sdcard/test/another%20folder > MKCOL_sdcard_test_anotherSPACEfolder.txt
@@ -41,7 +41,9 @@ curl -i -X PROPFIND -H "Depth: 1" ${host}sdcard/test > PROPFIND_depth1_root_sdca
 
 
 sed -i '' -e 's/^Date: .*$/Date: --/g' *.txt
-sed -i '' -e 's/<d:getlastmodified>.*<\/d:getlastmodified>//g' *.txt
+sed -i '' -e 's/<d:getlastmodified>.*<\/d:getlastmodified>/<d:getlastmodified\/>/g' *.txt
+sed -i '' -e 's/<d:creationdate>.*<\/d:creationdate>/<d:creationdate\/>/g' *.txt
+
 
 ls -alt
 

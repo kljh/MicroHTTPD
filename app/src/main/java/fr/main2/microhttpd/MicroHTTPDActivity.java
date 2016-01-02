@@ -410,18 +410,23 @@ class MicroHTTPD extends NanoHTTPD {
         m_root_folders.put("photos", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
         m_root_folders.put("pictures", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
         //m_root_folders.put("podcasts", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS));
-        m_root_folders.put("root", new File(""));
+        m_root_folders.put("root", new File("/"));
         m_root_folders.put("sdcard", Environment.getExternalStorageDirectory());
         //m_root_folders.put("tools",  getExternalFilesDir(null));
 
     }
 
     public File full_path(String uri) {
-        String[] uri_split = uri.split("\\/");
+        String[] uri_split = uri.split("/");
         String uri_root_folder = uri_split.length>1 ? uri_split[1] : "";
         File f = null;
         if (m_root_folders.containsKey(uri_root_folder)) {
             f = new File(m_root_folders.get(uri_root_folder), uri.substring(uri_root_folder.length()+1));
+        } else if (uri.equals("") || uri.equals("/")) {
+            f = new File("/");
+        } else {
+            String msg = "full_path(uri='"+uri+"'): unknown root folder '"+uri_root_folder+"'.";
+            Log.e("httpd", msg);
         }
         return f;
     }
@@ -442,8 +447,6 @@ class MicroHTTPD extends NanoHTTPD {
         String uri = session.getUri(); // excl query
         Method verb = session.getMethod(); // GET, POST, PUT, etc.
 
-        File f = full_path(uri);
-
         String msg = "";
 
         boolean bAuthOk = false;
@@ -458,6 +461,11 @@ class MicroHTTPD extends NanoHTTPD {
         } catch (UnsupportedEncodingException uee) {
             Log.e("httpd", "Authorization header error: "+uee);
         }
+
+        Log.w("httpd", "HTTP "+verb.toString()+" "+uri);
+        File f = full_path(uri);
+        if (f==null)
+            return createResponse(Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, ".");
 
         if (verb == Method.OPTIONS) {
             // OPTIONS (to ask permission to GET, POST, PUT)
@@ -476,15 +484,19 @@ class MicroHTTPD extends NanoHTTPD {
                 //    msg += line + "\n";
                 //session.get
 
-                Map<String, String> files = new HashMap<String, String>();
+                Map<String, String> files = new HashMap<>();
                 session.parseBody(files);
 
+                Log.w("httpd", "Headers:");
+                msg += "\n" + "Headers:" + "\n";
                 for (String h : headers.keySet()) {
                     String tmp = "header['" + h + "'] : " + headers.get(h);
                     Log.w("httpd", tmp);
                     msg += tmp + "\n";
                 }
 
+                Log.w("httpd", "Query params:");
+                msg += "\n" + "Query params:" + "\n";
                 for (String pk : params.keySet()) {
                     String tmp = "prms['" + pk + "'] : " + params.get(pk)
                             + " \nprms['" + pk + "'] : " + new String(params.get(pk).getBytes("ISO-8859-1"), "UTF-8"); // US-ASCII, ISO-8859-1, UTF-8
@@ -515,7 +527,7 @@ class MicroHTTPD extends NanoHTTPD {
                     File file_src = new File(files.get(fk));
                     File file_dst = new File(f.getCanonicalPath());
 
-                    String tmp = "file['" + fk + "'] : " + files.get(fk) + " " + file_src.length() + "bytes";
+                    String tmp = "file['" + fk + "'] : " + file_src.getCanonicalPath() + " " + file_src.length() + "bytes -> " + file_dst.getCanonicalPath();
                     Log.w("httpd", tmp);
                     msg += tmp + "\n";
 
@@ -554,11 +566,11 @@ class MicroHTTPD extends NanoHTTPD {
                         file_dst.setLastModified(last_modified_time);
                     }
 
-                    msg += file_src.getCanonicalPath() + " -> " + file_dst.getCanonicalPath() + "\n";
+                    msg += "Done "+file_src.getCanonicalPath() + " -> " + file_dst.getCanonicalPath() + "\n";
                 }
-                return createResponse(Response.Status.OK, "text/plain", msg);
+                return createResponse(Response.Status.OK, "text/plain", "");
             } catch (Exception e) {
-                msg += "error while writing file " + uri + "\n" + stack_trace(e);
+                msg += "error while writing file " + uri + "\n" + stack_trace(e) + "\n\n";
                 Log.e("httpd", msg);
                 return createResponse(Response.Status.INTERNAL_ERROR, "text/plain", msg);
             }
@@ -572,13 +584,18 @@ class MicroHTTPD extends NanoHTTPD {
             if (f==null || !f.exists()) {
                 return createResponse(Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, "NOT_FOUND: "+uri+" not found.\n");
             } else {
-                boolean bOk = f.delete();
-                if (bOk)
-                    return createResponse(Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, "OK: path "+uri+" has been deleted.\n");
+                boolean bOk;
+                if (f.isDirectory())
+                    bOk = NanoWebDAV.recursive_delete(f);
                 else
-                    return createResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "ERROR: path "+uri+" has NO Tbeen deleted.\n");
+                    bOk = f.delete();
+
+                if (bOk)
+                    return createResponse(Response.Status.NO_CONTENT, null, null); // NanoHTTPD.MIME_PLAINTEXT, "OK: path "+uri+" has been deleted.\n");
+                else
+                    return createResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "ERROR: path "+uri+" has NOT been deleted.\n");
             }
-        } else if (verb == Method.GET) {
+        } else if (verb == Method.GET || verb == Method.HEAD) {
             if (m_preferences.getBoolean("http_auth_get", http_auth_get_default) && !bAuthOk)
                 return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: http_auth_get set to true and authentication failed.");
 
@@ -637,11 +654,11 @@ class MicroHTTPD extends NanoHTTPD {
                     }
                 } catch (Exception e) {
                     Log.e("httpd", e.toString());
-                    return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found.\n" +e.toString());
+                    return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found.\n" +e.toString()+"\n");
                 }
 
             }
-            return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found");
+            return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found\n");
         }
 
         else {
@@ -661,7 +678,7 @@ class MicroHTTPD extends NanoHTTPD {
                 else if (verb == Method.UNLOCK)
                     return NanoWebDAV.webdav_unlock(session);
                 else
-                    return createResponse(Response.Status.NOT_IMPLEMENTED, "text/plain", "HTTP verb not supported");
+                    return createResponse(Response.Status.NOT_IMPLEMENTED, "text/plain", "HTTP verb "+verb.toString()+" not supported");
             } catch (Exception e) {
                 return createResponse(Response.Status.INTERNAL_ERROR, "text/plain", "HTTP WEBDAV EXCEPTION "+e.getMessage());
             }

@@ -9,7 +9,6 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -19,7 +18,7 @@ import fi.iki.elonen.NanoHTTPD;
 
 
 public class NanoWebDAV {
-    static final String no_content_mime = "application/xml; charset=utf-8"; // "application/xml; charset=utf-8"
+    static final String no_content_mime = null; // "application/xml; charset=utf-8"
 
     static void webdav_log_request(NanoHTTPD.IHTTPSession req) {
         Log.w("httpd_webdav", "request headers:\n" + req.getHeaders().toString() + "\n");
@@ -43,8 +42,6 @@ public class NanoWebDAV {
         res.addHeader("DAV", "1,2");
         res.addHeader("Content-Length", "0");
 
-        Log.w("httpd_webdav", "options exit");
-
         return res;
     }
 
@@ -56,7 +53,7 @@ public class NanoWebDAV {
             return createDavResponse(NanoHTTPD.Response.Status.FORBIDDEN, no_content_mime, "");
 
         try {
-            full_path.mkdirs();
+            boolean bCreated = full_path.mkdirs();
             return createDavResponse(NanoHTTPD.Response.Status.CREATED, no_content_mime, "");
 
         } catch (Exception e) {
@@ -151,7 +148,8 @@ public class NanoWebDAV {
     }
 
     public static NanoHTTPD.Response webdav_propfind(String url_path, File full_path, NanoHTTPD.IHTTPSession req, MicroHTTPD httpd) throws Exception {
-        Log.w("httpd_webdav", "propfind enters");
+        Log.w("httpd_webdav", "propfind url_path: " + url_path);
+        Log.w("httpd_webdav", "propfind full_path: " + full_path);
 
         String xml_header =
                 "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n" +
@@ -167,6 +165,7 @@ public class NanoWebDAV {
         int depth = 1;
         if (headers.containsKey("depth")) {
             String depth_txt = headers.get("depth");
+            Log.w("httpd_webdav", "depth_txt: " + depth_txt);
             if (depth_txt.length()>1)
                 depth = 2; // "Infinity"
             else
@@ -174,24 +173,23 @@ public class NanoWebDAV {
         };
         Log.w("httpd_webdav", "depth: " + depth);
 
+        if (!full_path.exists()) {
+            Log.w("httpd_webdav", "UNKNOWN PATH !! " + url_path);
+            return createDavResponse(NanoHTTPD.Response.Status.NOT_FOUND, no_content_mime, "");
+        }
+
         if (depth==0) {
 
-            if (url_path.equals("/") || (full_path!=null && full_path.exists())) {
-                Log.w("httpd_webdav", "reply_body for zero depth");
+            StringBuilder reply_body = new StringBuilder();
+            reply_body.append(xml_header);
+            webdav_propfind_response(reply_body, url_path, full_path, null);
+            reply_body.append(xml_footer);
 
-                StringBuilder reply_body = new StringBuilder();
-                reply_body.append(xml_header);
-                webdav_propfind_response(reply_body, url_path, full_path, null);
-                reply_body.append(xml_footer);
-
-                NanoHTTPD.Response res = createDavResponse(NanoHTTPD.Response.Status.MULTI_STATUS, "application/xml; charset=utf-8", reply_body.toString());
-                res.addHeader("DAV", "1,2");
-                return res;
-
-            } else {
-                Log.w("httpd_webdav", "UNKNOWN PATH !! " + url_path);
-                return createDavResponse(NanoHTTPD.Response.Status.NOT_FOUND, no_content_mime, "");
-            }
+            String reply_body_txt = reply_body.toString();
+            Log.w("httpd_webdav", "propfind depth=0 #"+reply_body_txt.length());
+            NanoHTTPD.Response res = createDavResponse(NanoHTTPD.Response.Status.MULTI_STATUS, "application/xml; charset=utf-8", reply_body_txt);
+            res.addHeader("DAV", "1,2");
+            return res;
 
         } else {
             // depth > 0
@@ -205,19 +203,22 @@ public class NanoWebDAV {
             webdav_propfind_response(reply_body, url_path, full_path, requested_fields);
 
             File[] files =  (full_path!=null) ? full_path.listFiles() : null;
-            if (files!=null) {
-                for (File file: files) {
-                    webdav_propfind_response(reply_body, (new File(url_path, file.getName())).getCanonicalPath(), file, requested_fields);
-                }
-            } else if (url_path.equals("/")) {
+            if (url_path.equals("/")) {
                 for (String directory : httpd.m_root_folders.keySet()) {
-                    webdav_propfind_response(reply_body, "/"+directory, httpd.m_root_folders.get(directory), requested_fields);
+                    if (httpd.m_root_folders.get(directory).isDirectory())
+                        webdav_propfind_response(reply_body, "/"+directory, httpd.m_root_folders.get(directory), requested_fields);
+                }
+            } else if (files!=null) {
+                for (File file: files) {
+                    webdav_propfind_response(reply_body, (new File(url_path, file.getName())).getAbsolutePath(), file, requested_fields);
                 }
             }
 
             reply_body.append(xml_footer);
 
-            NanoHTTPD.Response res = createDavResponse(NanoHTTPD.Response.Status.MULTI_STATUS, "application/xml; charset=utf-8", reply_body.toString());
+            String reply_body_txt = reply_body.toString();
+            Log.w("httpd_webdav", "propfind depth=1 #"+reply_body_txt.length());
+            NanoHTTPD.Response res = createDavResponse(NanoHTTPD.Response.Status.MULTI_STATUS, "application/xml; charset=utf-8", reply_body_txt);
             res.addHeader("DAV", "1,2");
             return res;
         }
@@ -225,39 +226,25 @@ public class NanoWebDAV {
     }
 
     public static void webdav_propfind_response(StringBuilder response, String url_path, File full_path, Set<String> requested_fields) {
-        Log.w("httpd_webdav", "webdav_propfind_response url_path: " + url_path);
-        Log.w("httpd_webdav", "webdav_propfind_response full_path: " + full_path);
+        //Log.w("httpd_webdav", "webdav_propfind_response url_path: " + url_path);
+        //Log.w("httpd_webdav", "webdav_propfind_response full_path: " + full_path);
 
 
-        boolean coll = full_path!=null && full_path.isDirectory();
-        long size = full_path!=null && full_path.isFile() ? full_path.length() : 0;
-        String last = full_path!=null && full_path.exists() ? toUTCString(full_path.lastModified()) : null; // Sat, 26 Dec 2015 15:38:20 GMT+00:00
-        String crea = full_path!=null && full_path.exists() ? toISOString(full_path.lastModified()) : null;
+        boolean coll = full_path.isDirectory();
+        long size = full_path.isFile() ? full_path.length() : 0;
+        String last = full_path.exists() ? toUTCString(full_path.lastModified()) : null; // Sat, 26 Dec 2015 15:38:20 GMT+00:00
+        String crea = full_path.exists() ? toISOString(full_path.lastModified()) : null;
 
-        Log.w("httpd_webdav", "webdav_propfind_response coll: " + coll);
-
-        if (full_path==null) {
-            coll = true;
-            last = "Sat, 26 Dec 2015 15:38:20 GMT+00:00";
-            crea = "2015-12-25T00:00:00Z";
-        }
-
-        Log.w("httpd_webdav", "webdav_propfind_response coll: " + coll);
-
+        // postfix folders with a '/' if missing
         String href = url_path + ( coll && !url_path.endsWith("/") ? "/" : "" );
-        Log.w("httpd_webdav", "webdav_propfind_response href: " + href);
 
         String name = (new File(url_path)).getName();
-        Log.w("httpd_webdav", "webdav_propfind_response name: " + name);
-        if (name==null || name.equals("")) name = "root";
-        Log.w("httpd_webdav", "webdav_propfind_response name: " + name);
+        if (url_path.equals("/")) name = "phone";
 
 
         // skip invisible files
         if ((full_path!=null && full_path.isHidden()) || name.startsWith("."))
             return;
-
-        Log.w("httpd_webdav", "webdav_propfind_response starting... ");
 
         response.append(
                 "\t<d:response>\n" +
