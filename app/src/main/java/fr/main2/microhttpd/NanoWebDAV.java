@@ -4,6 +4,8 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -160,30 +162,32 @@ public class NanoWebDAV {
     }
 
     public static NanoHTTPD.Response webdav_propfind(String url_path, File full_path, NanoHTTPD.IHTTPSession req, MicroHTTPD httpd) throws Exception {
-        Log.w("httpd_webdav", "propfind url_path: " + url_path);
-        Log.w("httpd_webdav", "propfind full_path: " + full_path);
+        //Log.w("httpd_webdav", "propfind url_path: " + url_path);
+        //Log.w("httpd_webdav", "propfind full_path: " + full_path);
+
+        String request_body = getBodyText(req);
 
         String xml_header =
-                "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n" +
-                        "<d:multistatus" +
-                        " xmlns:cs=\"http://calendarserver.org/ns/\"" +
-                        " xmlns:cal=\"urn:ietf:params:xml:ns:caldav\"" +
-                        " xmlns:card=\"urn:ietf:params:xml:ns:carddav\"" +
-                        " xmlns:d=\"DAV:\">\n";
+            "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n" +
+            "<d:multistatus" +
+            " xmlns:cs=\"http://calendarserver.org/ns/\"" +
+            " xmlns:cal=\"urn:ietf:params:xml:ns:caldav\"" +
+            " xmlns:card=\"urn:ietf:params:xml:ns:carddav\"" +
+            " xmlns:d=\"DAV:\">\n";
         String xml_footer =
-                "</d:multistatus>";
+            "</d:multistatus>";
 
         Map<String, String> headers = req.getHeaders();
         int depth = 1;
         if (headers.containsKey("depth")) {
             String depth_txt = headers.get("depth");
-            Log.w("httpd_webdav", "depth_txt: " + depth_txt);
+            //Log.w("httpd_webdav", "depth_txt: " + depth_txt);
             if (depth_txt.length()>1)
                 depth = 2; // "Infinity"
             else
                 depth = Integer.parseInt(depth_txt); // "1" or "2"
         };
-        Log.w("httpd_webdav", "depth: " + depth);
+        //Log.w("httpd_webdav", "depth: " + depth);
 
         if (!full_path.exists()) {
             Log.w("httpd_webdav", "UNKNOWN PATH !! " + url_path);
@@ -198,7 +202,7 @@ public class NanoWebDAV {
             reply_body.append(xml_footer);
 
             String reply_body_txt = reply_body.toString();
-            Log.w("httpd_webdav", "propfind depth=0 #"+reply_body_txt.length());
+            //Log.w("httpd_webdav", "propfind depth=0 #"+reply_body_txt.length());
             NanoHTTPD.Response res = createDavResponse(NanoHTTPD.Response.Status.MULTI_STATUS, "application/xml; charset=utf-8", reply_body_txt);
             res.addHeader("DAV", "1,2");
             return res;
@@ -234,7 +238,7 @@ public class NanoWebDAV {
             reply_body.append(xml_footer);
 
             String reply_body_txt = reply_body.toString();
-            Log.w("httpd_webdav", "propfind depth=1 #"+reply_body_txt.length());
+            //Log.w("httpd_webdav", "propfind depth=1 #"+reply_body_txt.length());
             NanoHTTPD.Response res = createDavResponse(NanoHTTPD.Response.Status.MULTI_STATUS, "application/xml; charset=utf-8", reply_body_txt);
             res.addHeader("DAV", "1,2");
             return res;
@@ -264,10 +268,10 @@ public class NanoWebDAV {
             return;
 
         response.append(
-                "\t<d:response>\n" +
-                "\t\t<d:href>" + href + "</d:href>\n" +
-                "\t\t<d:propstat>\n" +
-                "\t\t\t<d:prop>\n");
+            "\t<d:response>\n" +
+            "\t\t<d:href>" + href + "</d:href>\n" +
+            "\t\t<d:propstat>\n" +
+            "\t\t\t<d:prop>\n");
 
         if (coll) {
             response.append(
@@ -286,12 +290,12 @@ public class NanoWebDAV {
         } else {
             String mime = MicroHTTPD.getMimeTypeForFile(name);
             response.append(
-                "\t\t\t\t<d:creationdate>"+crea+"</d:creationdate>\n" +
-                "\t\t\t\t<d:displayname>"+name+"</d:displayname>\n" +
-                "\t\t\t\t<d:name>"+name+"</d:name>\n" +
-                "\t\t\t\t<d:getcontentlength>"+size+"</d:getcontentlength>\n" +
-                "\t\t\t\t<d:getcontenttype>"+mime+"</d:getcontenttype>\n" +
-                "\t\t\t\t<d:getlastmodified>"+last+"</d:getlastmodified>\n" +
+                "\t\t\t\t<d:creationdate>" + crea + "</d:creationdate>\n" +
+                "\t\t\t\t<d:displayname>" + name + "</d:displayname>\n" +
+                "\t\t\t\t<d:name>" + name + "</d:name>\n" +
+                "\t\t\t\t<d:getcontentlength>" + size + "</d:getcontentlength>\n" +
+                "\t\t\t\t<d:getcontenttype>" + mime + "</d:getcontenttype>\n" +
+                "\t\t\t\t<d:getlastmodified>" + last + "</d:getlastmodified>\n" +
                 "\t\t\t\t<d:resourcetype/>\n" +
                 // NOT IN RFC 4918 :
                 "\t\t\t\t<d:iscollection>FALSE</d:iscollection>\n" +
@@ -321,7 +325,7 @@ public class NanoWebDAV {
             "\t\t</d:propstat>\n");
 
         response.append(
-                "\t</d:response>\n");
+            "\t</d:response>\n");
     }
 
     public static String toUTCString(long t) {
@@ -342,11 +346,13 @@ public class NanoWebDAV {
     public static NanoHTTPD.Response webdav_proppatch(NanoHTTPD.IHTTPSession req) {
         webdav_log_request(req);
 
+        String request_body = getBodyText(req);
         String reply_body = "";
         return createDavResponse(NanoHTTPD.Response.Status.OK, "application/xml; charset=utf-8", reply_body);
     }
 
     public static NanoHTTPD.Response webdav_lock(NanoHTTPD.IHTTPSession req) {
+        String request_body = getBodyText(req);
         String reply_body =
             "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n" +
             "<D:prop xmlns:D=\"DAV:\">\n" +
@@ -363,6 +369,30 @@ public class NanoWebDAV {
     }
 
     public static NanoHTTPD.Response webdav_unlock(NanoHTTPD.IHTTPSession req) {
+        String request_body = getBodyText(req);
         return createDavResponse(NanoHTTPD.Response.Status.NO_CONTENT, no_content_mime, "");
+    }
+
+
+
+    static String getBodyText(NanoHTTPD.IHTTPSession req) {
+        Map<String, String> headers = req.getHeaders();
+        if (!headers.containsKey("content-length")) {
+            return null;
+        }
+
+        int bytes_to_read = Integer.parseInt(headers.get("content-length"));
+        InputStream is = req.getInputStream();
+        byte[] buf = new byte[bytes_to_read];
+        int read_count = 0;
+        try {
+            while (read_count >= 0 && bytes_to_read > 0) {
+                read_count = is.read(buf, 0, bytes_to_read);
+                bytes_to_read -= read_count;
+            }
+        } catch (IOException e) {}
+
+        String s = new String(buf);
+        return s;
     }
 }

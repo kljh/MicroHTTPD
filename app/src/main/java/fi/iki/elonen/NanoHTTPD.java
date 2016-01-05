@@ -820,9 +820,13 @@ public abstract class NanoHTTPD {
                     this.headers.put("http-client-ip", this.remoteIp);
                 }
 
+                if (!pre.containsKey("method")) {
+                    throw new ResponseException(Response.Status.BAD_REQUEST, "BAD REQUEST: Syntax error. Verb not specified.");
+                }
+
                 this.method = Method.lookup(pre.get("method"));
                 if (this.method == null) {
-                    throw new ResponseException(Response.Status.BAD_REQUEST, "BAD REQUEST: Syntax error.");
+                    throw new ResponseException(Response.Status.BAD_REQUEST, "BAD REQUEST: Syntax error. Verb "+pre.get("method")+" unhandled.");
                 }
 
                 this.uri = pre.get("uri");
