@@ -1,7 +1,9 @@
-var remote_server = "";
+console.log("list_js");
+
+var http_server = location.origin;
 if (location.protocol=="file:" || location.hostname=="localhost") {
 	// for remote debug purpose (e.g. page and scripts on desktop displaying file system content on device) 
-	remote_server = "http://192.168.1.15:8086";
+	http_server = "http://192.168.0.7:8086";
 }
 
 function getParameterByName(name) {
@@ -34,7 +36,7 @@ function list_dw(folder, ls) {
         document.write('<a href="'+location.pathname+'?path='+folder+f+'">'+f+'</a></td>'
             + '<td>'+ls[i].length+'</td><tr>');
     else
-        document.write('<a href="'+remote_server+folder+f+'">'+f+'</a></td></td>'
+        document.write('<a href="'+http_server+folder+f+'">'+f+'</a></td></td>'
             + '<td>'+ls[i].length+'</td><tr>');;
     document.write('</td></tr>');
 
@@ -79,7 +81,7 @@ function list(folder, ls) {
             c1ref = location.pathname+'?path='+folder+f;
             c1txt = f;
         } else {
-            c1ref = remote_server+folder+f
+            c1ref = http_server+folder+f
             c1txt = f;
         }
         
@@ -132,7 +134,7 @@ function list_hot(folder, ls) {
 		if (is_dir)
 			ls[i].name = '<a href="'+location.pathname+'?path='+folder+f+'">'+f+'</a><br/>';
 		else 
-			ls[i].name = '<a href="'+remote_server+folder+f+'">'+f+'</a><br/>';
+			ls[i].name = '<a href="'+http_server+folder+f+'">'+f+'</a><br/>';
 
 	}
 	var hot_container = document.getElementById('path_explorer');
@@ -156,18 +158,18 @@ function list_hot(folder, ls) {
 }
 
 (window.onpopstate = function () {
-	
+
 	var path = getParameterByName("path");
 	if (!path) path = "/";
 
-	var url = remote_server+path+"?list";
+	var url = http_server+path+"?list";
 	var xmlhttp = new XMLHttpRequest();
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == 4 ) {
            if(xmlhttp.status == 200) {
                var content = xmlhttp.responseText;
                //alert(content);
-               console.log(content);
+               //console.log(content);
                list(path, JSON.parse(content));
            } else {
                	var div = document.getElementById('path_explorer');

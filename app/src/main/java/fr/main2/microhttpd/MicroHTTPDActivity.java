@@ -182,6 +182,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
                 HashMap<String, Integer> deps = new HashMap<>();
                 deps.put("index.html", R.raw.index_html);
                 deps.put("list_js.js", R.raw.list_js);
+                deps.put("upload_js.js", R.raw.upload_js);
                 deps.put("jquery_min.js", R.raw.jquery_min_js);
                 deps.put("handsontable_full_min_js.js", R.raw.handsontable_full_min_js);
                 deps.put("handsontable_full_min_css.css", R.raw.handsontable_full_min_css);

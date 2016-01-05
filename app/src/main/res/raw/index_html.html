@@ -16,28 +16,38 @@
 <link rel="stylesheet" href="handsontable_full_min_css.css">
 -->
 
-    <script src="list_js.js"></script>
+    <script type="text/javascript" src="list_js.js"></script>
+    <script type="text/javascript" src="upload_js.js"></script>
 <style>
 .button {
     display: inline-block;
     border-radius: 5px;
-    font-weight: bold;
-    padding: 5px 10px;
-    background-color: #5500AA;
-    color: #FFFFFF;
+    border: 1px solid #BBBBBB;
+    /*font-weight: bold;*/
+    padding: 2px 5px;
+    background-color: #FCFCFC;
+    color: #222222;
+}
+#drop_zone {
+    border: 2px dashed #BBBBBB;
+    border-radius: 5px 5px 5px 5px;
+    color: #BBBBBB;
+    padding: 25px;
+    text-align: center;
+    align: center;
 }
 </style>
 </head>
-<body>
+<body onload="drag_init();">
 <!-- pre>
     curl -i -X DELETE -u kljh:pioupiou             http://192.168.0.7:8086/downloads/up/tst/b.txt
     curl -i -X PUT    -u kljh:pioupiou -d @up.txt  http://192.168.0.7:8086/downloads/up/tst/b.txt
     curl -i -X POST   -u kljh:pioupiou -H "Content-Type: multipart/form-data" -H userid=7654 -F "userid=1234" -F "pwd=123" -F "data=@up.txt" -F "load=@up2.txt" http://192.168.0.7:8086/downloads/up/tst/b.txt
 </pre -->
 <div id="main_screen">
+    <!-- <div class="button">Merci</div> -->
+    <div id="drop_zone">Drop files to upload here<div id="upload_update"></div></div><br/>
     <!--
-    <div class="button">Upload</div>
-    -->
     Upload:
     <form action="http://192.168.1.15:8086/downloads/uploads/" method="post" enctype="multipart/form-data">
         <input type="file" name="file" multiple>
@@ -45,6 +55,7 @@
         <input type="datetime-local" name="Last-Modified" value="" placeholder="last modified date and time">
         <input type="submit" value="Upload">
     </form>
+    -->
 </div>
 <div id="path_explorer"></div>
 </body>
