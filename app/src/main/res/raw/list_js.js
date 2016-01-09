@@ -3,8 +3,11 @@ console.log("list_js");
 var http_server = location.origin;
 if (location.protocol=="file:" || location.hostname=="localhost") {
 	// for remote debug purpose (e.g. page and scripts on desktop displaying file system content on device) 
-	http_server = "http://192.168.0.7:8086";
+	http_server = "http://192.168.0.13:8086";
 }
+console.log("add \u2295, remove \u2297, ");
+unicode_txt ='✎✓✗☑☒⊕⊗♫♨☢☣✠♔♕♖♘☂☃☰☷';
+for (var c in unicode_txt) console.log(unicode_txt[c]+" "+unicode_txt.charCodeAt(c*1).toString(16));
 
 function getParameterByName(name) {
     name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
@@ -63,11 +66,13 @@ function list(folder, ls) {
         div.appendChild(document.createTextNode(" "));
     }
     div.appendChild(document.createElement("br"));
+    div.appendChild(document.createTextNode(" Add folder here ⊕ "));
+    div.appendChild(document.createElement("br"));
     div.appendChild(document.createElement("br"));
 
     var table = document.createElement("table");
     var tr = document.createElement("tr");
-    tr.innerHTML = '<th id="name-header">Name</th><th id="size-header">Size</th><th id="last-modified-header">LastModified</th>';
+    tr.innerHTML = '<th id="name-header">Name</th><th id="size-header">Size</th><th id="last-modified-header">LastModified</th><th>Delete</th>';
     table.appendChild(tr);
 
     for (var i=0; i<ls.length; i++) {
@@ -98,6 +103,14 @@ function list(folder, ls) {
         
         var td = document.createElement("td");
         td.appendChild(document.createTextNode(ls[i].lastModified ? new Date(ls[i].lastModified).toISOString() : ""));
+        tr.appendChild(td);
+
+        var td = document.createElement("td");
+        var a = document.createElement("a");
+        a.appendChild(document.createTextNode("⊗"));
+        a.href = c1ref;
+        a.setAttribute("style", "text-decoration: none;");
+        td.appendChild(a);
         tr.appendChild(td);
         
         var td = document.createElement("td");

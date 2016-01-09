@@ -2,12 +2,16 @@ package fr.main2.microhttpd;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.wifi.WifiManager;
+import android.net.wifi.p2p.WifiP2pDevice;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -57,6 +61,7 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
@@ -71,6 +76,12 @@ public class MicroHTTPDActivity extends ActionBarActivity {
 
     private MicroHTTPD m_micro_httpd;
 
+    /*
+    private final IntentFilter m_p2p_intentFilter = new IntentFilter();
+    private WifiP2pManager m_p2p_manager;
+    private WifiP2pManager.Channel m_p2p_channel;
+    */
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         //this.requestWindowFeature(Window.FEATURE_NO_TITLE);  // Remove title bar
@@ -79,8 +90,8 @@ public class MicroHTTPDActivity extends ActionBarActivity {
 
         TextView greeting_textview = (TextView) findViewById( R.id.greetings );
 
-        boolean RESTART_ON_CHANGE = true;
-        boolean NO_RESTART_ON_CHANGE = false;
+        final boolean RESTART_ON_CHANGE = true;
+        final boolean NO_RESTART_ON_CHANGE = false;
         sync_setting_checkbox("http_secure", R.id.http_secure, MicroHTTPD.http_secure_default,
                 "HTTP server will uses HTTPs.\nCertificate is self-signed. The browser will issue a secrurity warning (still exposed to man-in-the-middle attacks).",
                 "HTTP server will uses standard HTTP.", RESTART_ON_CHANGE);
@@ -91,7 +102,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
         sync_setting_checkbox("http_auth_delete", R.id.http_auth_delete, MicroHTTPD.http_auth_delete_default, null, "DELETE requests now allowed without authentification", NO_RESTART_ON_CHANGE);
 
         String http_password = getPreferences(MODE_PRIVATE).getString("http_password", null);
-        if (http_password==null || http_password=="")
+        if (http_password==null || http_password.equals(""))
             http_password = random_password(8);
         final EditText http_password_input = (EditText) findViewById( R.id.http_password );
         http_password_input.setText(http_password);
@@ -176,7 +187,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
             m_micro_httpd.m_root_folders.put("tools", getExternalFilesDir(null));
 
             // Copy Resources to ExternalFiles
-            File file = new File(getExternalFilesDir(null), "index.html");
+            //File file = new File(getExternalFilesDir(null), "index.html");
             //if (!file.exists())
             {
                 HashMap<String, Integer> deps = new HashMap<>();
@@ -190,21 +201,42 @@ public class MicroHTTPDActivity extends ActionBarActivity {
 
                 for (Map.Entry<String, Integer> entry : deps.entrySet())
                 {
-                    //InputStream is = getResources().openRawResource(R.raw.index_html);
-                    //OutputStream os = new FileOutputStream(file);
                     InputStream is = getResources().openRawResource(entry.getValue());
                     OutputStream os = new FileOutputStream(new File(getExternalFilesDir(null), entry.getKey()));
 
-                    byte[] data = new byte[is.available()];
-                    is.read(data);
+                    int total_count = is.available();
+                    byte[] data = new byte[total_count];
+                    int read_count = is.read(data);
                     os.write(data);
                     is.close();
                     os.close();
+                    if (read_count!=total_count)
+                        Log.e("httpd", "failed to fully read and save "+entry.getKey());
                 }
             }
         } catch (Exception e) {
             Log.e("httpd", "Resources2External error: " + e.toString());
         }
+
+        // requires API 14+
+        /*
+        int api_version = android.os.Build.VERSION.SDK_INT;
+        if (api_version>=14) {
+            try {
+                m_p2p_intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
+                m_p2p_intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+                m_p2p_intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
+                m_p2p_intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
+
+                m_p2p_manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
+                m_p2p_channel = m_p2p_manager.initialize(this, getMainLooper(), null);
+            } catch (Exception e) {
+                Log.e("httpd", "P2P error: " + e.toString());
+            }
+        } else {
+            Log.w("httpd", "Running on API "+api_version+", need 14+ to get Wifi name.");
+        }
+        */
     }
 
     @Override
@@ -278,6 +310,15 @@ public class MicroHTTPDActivity extends ActionBarActivity {
             System.err.println( "Couldn't get server IP:\n" + e );
             System.exit( -1 );
         }
+
+        /*
+        try {
+            BroadcastReceiver p2p_broadcast_receiver = new WiFiDirectBroadcastReceiver();
+            registerReceiver(p2p_broadcast_receiver, m_p2p_intentFilter);
+        } catch ( Exception e ) {
+            Log.w("httpd", "couldn't get Wifi PnP access to retrieve device name. "+e.getMessage());
+        }
+        */
 
     }
 
@@ -384,7 +425,29 @@ public class MicroHTTPDActivity extends ActionBarActivity {
 }
 
 /*
-public class BootUpReceiver extends BroadcastReceiver {
+class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        String action = intent.getAction();
+        Log.w("httpd", "WiFiDirectBroadcastReceiver.onReceive action: " + action);
+
+        int api_version = android.os.Build.VERSION.SDK_INT;
+        if (api_version>=14) {
+            if (WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION.equals(action)) {
+                int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
+            } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
+            } else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(action)) {
+            } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {
+                WifiP2pDevice device = (WifiP2pDevice) intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
+                Log.w("httpd_p2p", "***** DEVICE NAME " + device.deviceName + " *****");
+            }
+        }
+    }
+}
+*/
+
+/*
+class BootUpReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         Intent i = new Intent(context, MicroHTTPDActivity.class);
@@ -465,8 +528,10 @@ class MicroHTTPD extends NanoHTTPD {
 
         Log.w("httpd", "HTTP "+verb.toString()+" "+uri);
         File f = full_path(uri);
-        if (f==null)
+        if (f==null) {
+            // URI root folder was not listed in m_root_folders
             return createResponse(Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, ".");
+        }
 
         if (verb == Method.OPTIONS) {
             // OPTIONS (to ask permission to GET, POST, PUT)
@@ -508,9 +573,6 @@ class MicroHTTPD extends NanoHTTPD {
                 for (String fk : files.keySet()) {
 
                     // create parent folder
-                    if (f==null)
-                        throw new Exception("write destination invalid (shall be prefixed with /downloads/ ?)");
-
                     if (!f.exists()) {
                         if (uri.endsWith("/"))
                             f.mkdirs();
@@ -554,17 +616,18 @@ class MicroHTTPD extends NanoHTTPD {
                         last_modified_text = params.get("Last-Modified");
                     if (last_modified_text != null && !last_modified_text.isEmpty()) {
                         msg += "last_modified_text: " + last_modified_text + "\n";
-                        SimpleDateFormat date_fmt = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz"); // RFC-7231
+                        SimpleDateFormat date_fmt = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US); // RFC-7231
                         if (last_modified_text.length()==10)
-                            date_fmt = new SimpleDateFormat("yyyy-MM-dd"); // ISO 8601
+                            date_fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.US); // ISO 8601
                         if (last_modified_text.length()==16)
-                            date_fmt = new SimpleDateFormat("yyyy-MM-dd'"+last_modified_text.charAt(10)+"'HH:mm");
+                            date_fmt = new SimpleDateFormat("yyyy-MM-dd'"+last_modified_text.charAt(10)+"'HH:mm", Locale.US);
                         if (last_modified_text.length()==17)
-                            date_fmt = new SimpleDateFormat("yyyy-MM-dd'"+last_modified_text.charAt(10)+"'HH:mm'"+last_modified_text.charAt(16)+"'");
+                            date_fmt = new SimpleDateFormat("yyyy-MM-dd'"+last_modified_text.charAt(10)+"'HH:mm'"+last_modified_text.charAt(16)+"'", Locale.US);
                         Date last_modified_date = date_fmt.parse(last_modified_text);
                         long last_modified_time = last_modified_date.getTime(); // milliseconds since January 1, 1970, 00:00:00 GMT.
                         msg += "last_modified_time: " + last_modified_time + "\n";
-                        file_dst.setLastModified(last_modified_time);
+                        boolean b = file_dst.setLastModified(last_modified_time);
+                        if (!b) Log.e("httpd", "setLastModified("+file_dst.getAbsolutePath()+","+last_modified_date+") returned false");
                     }
 
                     msg += "Done "+file_src.getCanonicalPath() + " -> " + file_dst.getCanonicalPath() + "\n";
@@ -600,7 +663,21 @@ class MicroHTTPD extends NanoHTTPD {
             if (m_preferences.getBoolean("http_auth_get", http_auth_get_default) && !bAuthOk)
                 return createResponse(Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "FORBIDDEN: http_auth_get set to true and authentication failed.");
 
-            if (f!=null && f.exists()) {
+            if (uri.equals("/")) {
+                if (params.containsKey("list")) {
+                    // list directory
+                    if (params.containsKey("list") && !params.get("list").equalsIgnoreCase("html"))
+                        return listRootDirectoryJson();
+                    else
+                        return listRootDirectoryHtml();
+                } else {
+                    String redirect_url = "/tools/index.html" + (query!=null?"?"+query:"");
+                    Response res = createResponse(Response.Status.REDIRECT, NanoHTTPD.MIME_HTML,
+                        "<html><body>Redirected: <a href=\"" + redirect_url + "\">" + redirect_url + "</a></body></html>");
+                    res.addHeader("Location", redirect_url);
+                    return res;
+                }
+            } else if (f != null && f.exists()) {
                 if (!f.isDirectory()) {
                     /*
                     // initial dummy implementation
@@ -620,7 +697,7 @@ class MicroHTTPD extends NanoHTTPD {
                     return serveFile(f.getAbsolutePath(), headers, f, mimeTypeForFile);
                 } else {
                     // folder
-                    boolean index_html_exists = new File(f.getAbsolutePath()+"/index.html").exists();
+                    boolean index_html_exists = new File(f.getAbsolutePath() + "/index.html").exists();
                     if (!index_html_exists || params.containsKey("list")) {
                         // list directory
                         boolean calculate_hashes = false;
@@ -637,29 +714,8 @@ class MicroHTTPD extends NanoHTTPD {
                 }
             } else {
                 // GET but uri does not exist
-                try {
-                    if (uri.equals("/")) {
-                        if (params.containsKey("list")) {
-                            // list directory
-                            if (params.containsKey("list") && !params.get("list").equalsIgnoreCase("html"))
-                                return listRootDirectoryJson();
-                            else
-                                return listRootDirectoryHtml();
-                        } else {
-                            String redirect_url = "/tools/index.html?" + query;
-                            Response res = createResponse(Response.Status.REDIRECT, NanoHTTPD.MIME_HTML,
-                                    "<html><body>Redirected: <a href=\"" + redirect_url + "\">" + redirect_url + "</a></body></html>");
-                            res.addHeader("Location", redirect_url);
-                            return res;
-                        }
-                    }
-                } catch (Exception e) {
-                    Log.e("httpd", e.toString());
-                    return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found.\n" +e.toString()+"\n");
-                }
-
+                return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found\n");
             }
-            return createResponse(Response.Status.NOT_FOUND, "text/plain", uri + " not found\n");
         }
 
         else {
@@ -672,6 +728,8 @@ class MicroHTTPD extends NanoHTTPD {
                     return NanoWebDAV.webdav_mkcol(uri, f, session);
                 else if (verb == Method.MOVE)
                     return NanoWebDAV.webdav_move(uri, f, session, this);
+                else if (verb == Method.COPY)
+                    return NanoWebDAV.webdav_copy(uri, f, session, this);
                 else if (verb == Method.DELETE)
                     return NanoWebDAV.webdav_delete(uri, f, session);
                 else if (verb == Method.LOCK)
@@ -847,10 +905,10 @@ class MicroHTTPD extends NanoHTTPD {
         try {
             sb.append("<html><body>");
             for (String directory : directories) {
-                sb.append("<a href=\"" + directory + "/\">" + directory + "/</a><br/>");
+                sb.append(String.format("<a href=\"%s/\">%s/</a><br/>", directory, directory));
             }
             for (String file : files) {
-                sb.append("<a href=\"" + file + "\">" + file + "</a><br/>");
+                sb.append(String.format("<a href=\"%s\">%s</a><br/>", file, file));
             }
             sb.append("</body></html>");
 
@@ -876,7 +934,7 @@ class MicroHTTPD extends NanoHTTPD {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body>");
         for (String directory : m_root_folders.keySet())
-            sb.append("<a href=\"" + directory + "/\">" + directory + "/</a><br/>");
+            sb.append(String.format("<a href=\"%s/\">%s/</a><br/>", directory, directory));
         sb.append("</body></html>");
         return createResponse(Response.Status.OK, NanoHTTPD.MIME_HTML, sb.toString());
     }
@@ -914,7 +972,7 @@ class MicroHTTPD extends NanoHTTPD {
     */
 
     // Hashtable mapping (String)FILENAME_EXTENSION -> (String)MIME_TYPE
-    private static final Map<String, String> MIME_TYPES = new HashMap<String, String>() {{
+    private static Map<String, String> MIME_TYPES = new HashMap<String, String>() {{
         put("html", "text/html");
         put("htm", "text/html");
         put("xml", "text/xml");
@@ -938,7 +996,7 @@ class MicroHTTPD extends NanoHTTPD {
         put("ogg", "application/x-ogg");
     }};
 
-    private static final String file_md5(File f) {
+    private static String file_md5(File f) {
         final String MD5 = "MD5";
         try {
             // Create MD5 Hash
@@ -959,7 +1017,7 @@ class MicroHTTPD extends NanoHTTPD {
 
             MessageDigest digested = ish.getMessageDigest();
             byte mdBytes[] = digested.digest();
-            byte mdBytes2[] = digest.digest();
+            //byte mdBytes2[] = digest.digest();
 
 
             // Create Hex String
@@ -973,11 +1031,8 @@ class MicroHTTPD extends NanoHTTPD {
             return hexString.toString();
 
 
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (NoSuchAlgorithmException | IOException e) {
+            Log.w("httpd", "md5 "+e.getMessage());
             e.printStackTrace();
         }
         return "";

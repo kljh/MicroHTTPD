@@ -54,8 +54,8 @@ function drag_init() {
                 upload_bytes_left-=file.size;
                 upload_update();
                 
-                if (http_req.status>300) 
-                    alert("Error with "+url+" upload: \n" + JSON.stringify(http_req, null, 4));
+                if (!http_req.status || http_req.status>300)
+                    alert("Error with upload:\n" + url + "\n" + JSON.stringify(http_req, null, 4));
                
                 //http_req.responseText;
             }

@@ -55,20 +55,20 @@ public class NanoWebDAV {
             return createDavResponse(NanoHTTPD.Response.Status.FORBIDDEN, no_content_mime, "");
 
         try {
+            boolean bExists = full_path.exists() && full_path.isDirectory();
             boolean bCreated = full_path.mkdirs();
-            return createDavResponse(NanoHTTPD.Response.Status.CREATED, no_content_mime, "");
+            if (bExists||bCreated)
+                return createDavResponse(NanoHTTPD.Response.Status.CREATED, no_content_mime, "");
 
         } catch (Exception e) {
             Log.e("httpd_webdav", "EXCEPTION MKCOL " + e.getMessage());
-            return createDavResponse(NanoHTTPD.Response.Status.CONFLICT, no_content_mime, "");
         }
+        return createDavResponse(NanoHTTPD.Response.Status.CONFLICT, no_content_mime, "");
     }
 
 
     public static NanoHTTPD.Response webdav_move(String src_url_path, File src_full_path, NanoHTTPD.IHTTPSession req, MicroHTTPD httpd) {
         try {
-            Log.w("httpd_webdav", "HTTP MOVE src: " + src_url_path);
-
             Map<String,String> headers = req.getHeaders();
             String dst_url_path = java.net.URLDecoder.decode(headers.get("destination"), "UTF-8");
 
@@ -152,11 +152,11 @@ public class NanoWebDAV {
 
     static boolean recursive_delete(File folder_path) {
         File[] files = folder_path.listFiles();
-        for(int i=0; i<files.length; i++) {
-            if(files[i].isDirectory())
-                recursive_delete(files[i]);
+        for (File file : files) {
+            if (file.isDirectory())
+                recursive_delete(file);
             else
-                files[i].delete();
+                file.delete();
         }
         return folder_path.delete();
     }
@@ -165,6 +165,8 @@ public class NanoWebDAV {
         //Log.w("httpd_webdav", "propfind url_path: " + url_path);
         //Log.w("httpd_webdav", "propfind full_path: " + full_path);
 
+        // request the body to leave Network stream empty
+        @SuppressWarnings("unused")
         String request_body = getBodyText(req);
 
         String xml_header =
@@ -186,7 +188,7 @@ public class NanoWebDAV {
                 depth = 2; // "Infinity"
             else
                 depth = Integer.parseInt(depth_txt); // "1" or "2"
-        };
+        }
         //Log.w("httpd_webdav", "depth: " + depth);
 
         if (!full_path.exists()) {
@@ -337,7 +339,7 @@ public class NanoWebDAV {
 
     public static String toISOString(long t) {
         TimeZone tz = TimeZone.getTimeZone("UTC");
-        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'", Locale.US);
         df.setTimeZone(tz);
         return df.format(new Date(t));
     }
@@ -346,13 +348,20 @@ public class NanoWebDAV {
     public static NanoHTTPD.Response webdav_proppatch(NanoHTTPD.IHTTPSession req) {
         webdav_log_request(req);
 
+        // request the body to leave Network stream empty
+        @SuppressWarnings("unused")
         String request_body = getBodyText(req);
+
         String reply_body = "";
         return createDavResponse(NanoHTTPD.Response.Status.OK, "application/xml; charset=utf-8", reply_body);
     }
 
     public static NanoHTTPD.Response webdav_lock(NanoHTTPD.IHTTPSession req) {
+
+        // request the body to leave Network stream empty
+        @SuppressWarnings("unused")
         String request_body = getBodyText(req);
+
         String reply_body =
             "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n" +
             "<D:prop xmlns:D=\"DAV:\">\n" +
@@ -369,7 +378,11 @@ public class NanoWebDAV {
     }
 
     public static NanoHTTPD.Response webdav_unlock(NanoHTTPD.IHTTPSession req) {
+
+        // request the body to leave Network stream empty
+        @SuppressWarnings("unused")
         String request_body = getBodyText(req);
+
         return createDavResponse(NanoHTTPD.Response.Status.NO_CONTENT, no_content_mime, "");
     }
 
@@ -390,7 +403,9 @@ public class NanoWebDAV {
                 read_count = is.read(buf, 0, bytes_to_read);
                 bytes_to_read -= read_count;
             }
-        } catch (IOException e) {}
+        } catch (IOException e) {
+            Log.e("httpd", "error while reading request body.", e);
+        }
 
         String s = new String(buf);
         return s;
