@@ -103,7 +103,7 @@ public class MicroHTTPDActivity extends ActionBarActivity {
 
         String http_password = getPreferences(MODE_PRIVATE).getString("http_password", null);
         if (http_password==null || http_password.equals(""))
-            http_password = random_password(8);
+            http_password = random_password(3);
         final EditText http_password_input = (EditText) findViewById( R.id.http_password );
         http_password_input.setText(http_password);
         http_password_input.setOnKeyListener(new EditText.OnKeyListener() {
@@ -513,18 +513,10 @@ class MicroHTTPD extends NanoHTTPD {
 
         String msg = "";
 
-        boolean bAuthOk = false;
-        if (headers.containsKey("authorization")) try {
-            String auth64 = headers.get("authorization").replace("Basic ", "");
-            Log.w("httpd", "Authorization base64: "+auth64);
-            byte[] data = Base64.decode(auth64, Base64.DEFAULT);
-            String auth = new String(data, "UTF-8");
-            Log.w("httpd", "Authorization: "+auth);
-            msg += "Authorization: request uses secret '"+auth+"'.";
-            bAuthOk = auth.contains(m_http_password);
-        } catch (UnsupportedEncodingException uee) {
-            Log.e("httpd", "Authorization header error: "+uee);
-        }
+        Response ask_for_auth = check_auth(verb, headers);
+        if (ask_for_auth!=null)
+            return ask_for_auth;
+        boolean bAuthOk = true;
 
         Log.w("httpd", "HTTP "+verb.toString()+" "+uri);
         File f = full_path(uri);
@@ -741,6 +733,76 @@ class MicroHTTPD extends NanoHTTPD {
             } catch (Exception e) {
                 return createResponse(Response.Status.INTERNAL_ERROR, "text/plain", "HTTP WEBDAV EXCEPTION "+e.getMessage());
             }
+        }
+    }
+
+    protected Response check_auth(Method http_verb, Map<String, String> headers) {
+        // if no authentication
+        if (!headers.containsKey("authorization")) {
+            String nonce = "askdj"+(new Date()).getTime();
+            Response res = createResponse(Response.Status.UNAUTHORIZED, "text/plain", "");
+            res.addHeader("WWW-Authenticate", "Digest realm=\"Test Digest\",nonce=\""+nonce+"\"");
+            return res;
+        }
+
+        boolean bAuth = false;
+        String auth = headers.get("authorization");
+        if (auth.startsWith("Basic")) {
+            try {
+                String auth64 = auth.replace("Basic ", "");
+                Log.w("httpd", "Authorization base64: " + auth64);
+                byte[] data = Base64.decode(auth64, Base64.DEFAULT);
+                auth = new String(data, "UTF-8");
+            } catch (Exception e) {}
+            Log.w("httpd", "Authorization: " + auth);
+            bAuth = auth.contains(m_http_password);
+        } else if (auth.startsWith("Digest")) {
+            String auth_split[] = auth.replace("Digest ", "").split(",");
+            Map<String, String> auth_data = new HashMap<>();
+            for (int i=0; i<auth_split.length; i++) {
+                String tmp[] = auth_split[i].trim().split("=");
+                auth_data.put(tmp[0], tmp[1].replace("\"", "").trim());
+            }
+
+            String ct1 = auth_data.get("username")+":"+auth_data.get("realm")+":"+m_http_password;
+            String ha1 = md5_hex(ct1);
+            Log.w("httpd", "ct1: "+ct1);
+            Log.w("httpd", "ha1: " + ha1);
+
+            String ct2 = http_verb+":"+auth_data.get("uri");
+            String ha2 = md5_hex(ct2);
+            Log.w("httpd", "ct2: " + ct2);
+            Log.w("httpd", "ha2: " + ha2);
+
+            String ct3 = ha1+":"+auth_data.get("nonce")+":"+ha2;
+            String ha3 = md5_hex(ct3);
+            Log.w("httpd", "ct3: " + ct3);
+            Log.w("httpd", "ha3: " + ha3);
+            Log.w("httpd", "rcv: " + auth_data.get("response"));
+
+            bAuth = ha3.equals(auth_data.get("response"));
+            Log.w("httpd", "authorization passed: " + bAuth);
+
+        } else {
+            Log.e("httpd", "unknown authentication scheme " + auth);
+        }
+
+        if (!bAuth) {
+            Response res = createResponse(Response.Status.UNAUTHORIZED, "text/plain", "");
+            return res;
+        }
+
+        return null;
+    }
+    private String md5_hex(String txt) {
+        try {
+            byte buff[] = MessageDigest.getInstance("MD5").digest(txt.getBytes());
+            StringBuffer sb = new StringBuffer();
+            for (int i=0; i<buff.length; i++)
+                sb.append(Integer.toHexString((buff[i] & 0xFF) | 0x100).substring(1, 3));
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
         }
     }
 
